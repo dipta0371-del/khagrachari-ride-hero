@@ -36,12 +36,9 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
     refetchInterval: 3500,
   });
 
-  // Re-render every second so the "x সেকেন্ড আগে" label stays honest.
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
+  // The per-second "x সেকেন্ড আগে" ticking lives in <PeerStatus/> so it never
+  // re-renders the whole map.
+
 
   // Surface a clear warning when the browser location permission is denied.
   useEffect(() => {
