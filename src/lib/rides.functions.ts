@@ -482,6 +482,9 @@ export const acceptRide = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) fail("রাইড নেওয়া যায়নি — আপনার আরেকটি রাইড চলছে অথবা অনুমোদন নেই।");
     if (!row) fail("এই রাইড অন্য একজন চালক নিয়ে নিয়েছেন।");
+    await notifyUser(row.rider_id, "রাইড গ্রহণ হয়েছে", "আপনার চালক পিকআপে আসছেন।", {
+      rideId: row.id,
+    });
     return mapRide(row);
   });
 
