@@ -38,7 +38,7 @@ Replace the local file database with Lovable Cloud (hosted database + logins + s
 - Admin role stored securely, never editable from the browser.
 
 ### Phase 4 — Design upgrade
-- A distinct visual identity for পাহাড়ি — hill-district palette, not a generic template.
+- A distinct visual identity for CHT GARI — hill-district palette, not a generic template.
 - Polished mobile-first booking screen, clearer ride-status tracking, better driver dashboard, cleaner admin tables.
 - Keep the Bengali typography and accessibility work you already did.
 
