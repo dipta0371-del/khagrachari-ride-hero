@@ -9,7 +9,8 @@ import { CENTER, SERVICE_RADIUS_KM } from "@/lib/domain";
 export interface MapPin {
   lat: number;
   lng: number;
-  kind: "pickup" | "dropoff" | "rider" | "driver";
+  kind: "pickup" | "dropoff" | "rider" | "driver" | "place";
+
   label?: string;
 }
 
