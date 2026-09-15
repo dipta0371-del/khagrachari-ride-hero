@@ -123,21 +123,8 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          {other ? (
-            <>
-              <span
-                className={`inline-block size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-muted-foreground"}`}
-                aria-hidden
-              />
-              {live
-                ? `${otherLabel} অবস্থান লাইভ`
-                : `${otherLabel} সর্বশেষ অবস্থান ${bn(age ?? 0)} সেকেন্ড আগে`}
-            </>
-          ) : (
-            `${otherLabel} লোকেশন এখনও আসেনি।`
-          )}
-        </p>
+        <PeerStatus capturedAt={other?.capturedAt ?? null} label={otherLabel} />
+
         <Button variant={sharing ? "secondary" : "default"} size="sm" onClick={toggle}>
           {sharing ? (
             <>
