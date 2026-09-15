@@ -171,6 +171,6 @@ export function timeBn(iso: string) {
   const d = new Date(iso);
   const date = d.toLocaleDateString("bn-BD", { day: "numeric", month: "short" });
   const h12 = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12;
-  const time = `${bn(h12)}:${bn(String(d.getMinutes()).padStart(2, "0"))}`;
+  const time = `${bn(h12)}:${String(d.getMinutes()).padStart(2, "0").replace(/\d/g, (c) => bn(Number(c)))}`;
   return `${date}, ${dayPeriodBn(d.getHours())} ${time}`;
 }
