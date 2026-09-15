@@ -189,6 +189,10 @@ function DriverPage() {
           </CardContent>
         </Card>
 
+        {driver.approved && <PushSetupCard />}
+
+
+
         {earnings && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="আজকের আয়" value={money(earnings.todayTotal)} sub={`${bn(earnings.todayCount)} রাইড`} />
