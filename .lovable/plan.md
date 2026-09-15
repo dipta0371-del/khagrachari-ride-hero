@@ -32,10 +32,11 @@ Replace the local file database with Lovable Cloud (hosted database + logins + s
 - Security rules so riders only see their own rides, drivers only their assigned ride, and admins everything.
 - Seed the demo drivers and starting fares so the app is usable the moment it opens.
 
-### Phase 3 — Real accounts
-- Sign up and sign in for riders and drivers.
+### Phase 3 — Real accounts (email sign-up)
+- Riders and drivers sign up and sign in with **email and password**. Phone sign-in comes later.
+- Profile stores name and an optional phone number for rider–driver contact during a ride.
 - Driver registration with vehicle type and plate, pending admin approval before they can accept rides.
-- Admin role stored securely, never editable from the browser.
+- Admin role stored securely in a separate roles table, never editable from the browser.
 
 ### Phase 4 — Design upgrade
 - A distinct visual identity for CHT GARI — hill-district palette, not a generic template.
