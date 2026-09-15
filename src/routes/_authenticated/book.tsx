@@ -223,7 +223,10 @@ function BookingForm({ rates }: { rates: ReturnType<typeof Object> extends never
   }
 
   function useMyLocation() {
-    if (!("geolocation" in navigator)) return toast.error("এই ডিভাইসে লোকেশন সাপোর্ট নেই।");
+    if (!("geolocation" in navigator)) {
+      toast.error("এই ডিভাইসে লোকেশন সাপোর্ট নেই।");
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) =>
         setPoint({
