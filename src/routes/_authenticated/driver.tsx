@@ -20,6 +20,7 @@ import {
   timeBn,
   vehicleLabels,
   type RideStatus,
+  type Vehicle,
 } from "@/lib/domain";
 import {
   acceptRide,
