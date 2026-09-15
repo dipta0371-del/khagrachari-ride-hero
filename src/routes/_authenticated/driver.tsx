@@ -136,7 +136,7 @@ function DriverPage() {
           <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
             <div>
               <p className="font-display text-xl font-bold">
-                {vehicleLabels[driver.vehicle]} · {driver.plate || "নম্বর নেই"}
+                {vehicleLabels[driver.vehicle as Vehicle]} · {driver.plate || "নম্বর নেই"}
               </p>
               <p className="text-sm text-muted-foreground">
                 {driver.approved ? "অনুমোদিত চালক" : "অ্যাডমিন অনুমোদনের অপেক্ষায়"}
