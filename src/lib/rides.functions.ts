@@ -285,6 +285,37 @@ export const bookRide = createServerFn({ method: "POST" })
       .select(RIDE_COLUMNS)
       .single();
     if (error) fail("রাইড তৈরি করা যায়নি — আবার চেষ্টা করুন।");
+
+    // Tell every free, online, approved driver of this vehicle type.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const admin = supabaseAdmin as unknown as AnyClient;
+      const { data: candidates } = await admin
+        .from("drivers")
+        .select("user_id")
+        .eq("approved", true)
+        .eq("online", true)
+        .eq("vehicle", data.vehicle);
+      const ids = ((candidates ?? []) as any[]).map((d) => d.user_id as string);
+      if (ids.length) {
+        const { data: busy } = await admin
+          .from("rides")
+          .select("driver_id")
+          .in("driver_id", ids)
+          .in("status", activeStatuses);
+        const busyIds = new Set(((busy ?? []) as any[]).map((r) => r.driver_id as string));
+        const free = ids.filter((id) => !busyIds.has(id));
+        await notifyUsers(
+          free,
+          "নতুন রাইড অনুরোধ",
+          `${data.pickup.name} → ${data.dropoff.name} · ভাড়া ৳${q.fare}`,
+          { rideId: row.id, path: "/driver" },
+        );
+      }
+    } catch (e) {
+      console.error("[notify] driver broadcast failed", e);
+    }
+
     return mapRide(row);
   });
 
