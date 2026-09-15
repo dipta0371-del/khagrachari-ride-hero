@@ -36,6 +36,16 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
 });
 
+interface AdminDriver {
+  userId: string;
+  name: string;
+  phone: string | null;
+  vehicle: Vehicle;
+  plate: string;
+  approved: boolean;
+  online: boolean;
+}
+
 function AdminPage() {
   const boardFn = useServerFn(getAdminBoard);
   const { data, isLoading, error } = useQuery({
@@ -94,7 +104,7 @@ function AdminPage() {
             {data!.drivers.length === 0 ? (
               <Empty>এখনও কোনো চালক নিবন্ধন করেননি।</Empty>
             ) : (
-              data!.drivers.map((d) => <DriverRow key={d.userId} driver={d} />)
+              data!.drivers.map((d: AdminDriver) => <DriverRow key={d.userId} driver={d} />)
             )}
           </TabsContent>
 
