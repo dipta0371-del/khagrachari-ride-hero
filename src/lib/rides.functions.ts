@@ -329,6 +329,17 @@ export const cancelRide = createServerFn({ method: "POST" })
       .eq("id", data.rideId);
     if (error) fail(error.message);
     await db.from("ride_locations").delete().eq("ride_id", data.rideId);
+
+    if (byRider && ride.driver_id) {
+      await notifyUser(ride.driver_id, "রাইড বাতিল", "যাত্রী রাইডটি বাতিল করেছেন।", {
+        rideId: data.rideId,
+      });
+    } else if (!byRider && ride.rider_id) {
+      await notifyUser(ride.rider_id, "রাইড বাতিল", "চালক রাইডটি বাতিল করেছেন।", {
+        rideId: data.rideId,
+      });
+    }
+
     return { ok: true };
   });
 
