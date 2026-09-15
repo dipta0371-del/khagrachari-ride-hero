@@ -131,7 +131,7 @@ function RideCard({ ride, rated }: { ride: RideRow; rated: boolean }) {
                     key={n}
                     type="button"
                     onClick={() => setScore(n)}
-                    aria-label={`${n} তারকা`}
+                    aria-label={`${bn(n)} তারকা`}
                     className="p-1"
                   >
                     <Star

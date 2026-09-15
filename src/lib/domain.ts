@@ -159,11 +159,18 @@ export const roleLabels: Record<Role, string> = {
 export const money = (v: number) => `৳${Math.round(v).toLocaleString("bn-BD")}`;
 export const bn = (v: number) => v.toLocaleString("bn-BD");
 
+function dayPeriodBn(hour: number) {
+  if (hour < 4) return "রাত";
+  if (hour < 12) return "সকাল";
+  if (hour < 16) return "দুপুর";
+  if (hour < 19) return "বিকাল";
+  return "রাত";
+}
+
 export function timeBn(iso: string) {
-  return new Date(iso).toLocaleString("bn-BD", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("bn-BD", { day: "numeric", month: "short" });
+  const h12 = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12;
+  const time = `${bn(h12)}:${String(d.getMinutes()).padStart(2, "0").replace(/\d/g, (c) => bn(Number(c)))}`;
+  return `${date}, ${dayPeriodBn(d.getHours())} ${time}`;
 }

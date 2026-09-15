@@ -61,7 +61,7 @@ function AuthPage() {
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/book`,
+            emailRedirectTo: `${window.location.origin}${mode === "driver" ? "/profile" : "/book"}`,
             data: { full_name: name.trim() },
           },
         });
@@ -71,7 +71,7 @@ function AuthPage() {
           return;
         }
         toast.success("অ্যাকাউন্ট তৈরি হয়েছে");
-        navigate({ to: "/book", replace: true });
+        navigate({ to: mode === "driver" ? "/profile" : "/book", replace: true });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
