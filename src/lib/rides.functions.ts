@@ -527,6 +527,26 @@ export const acceptRide = createServerFn({ method: "POST" })
     await notifyUser(row.rider_id, "রাইড গ্রহণ হয়েছে", "আপনার চালক পিকআপে আসছেন।", {
       rideId: row.id,
     });
+
+    // Let the other drivers who were alerted know the ride is gone.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const admin = supabaseAdmin as unknown as AnyClient;
+      const { data: others } = await admin
+        .from("drivers")
+        .select("user_id")
+        .eq("approved", true)
+        .eq("online", true)
+        .eq("vehicle", row.vehicle);
+      const ids = ((others ?? []) as any[])
+        .map((d) => d.user_id as string)
+        .filter((id) => id !== context.userId);
+      await notifyUsers(ids, "রাইডটি নেওয়া হয়েছে", "অন্য একজন চালক রাইডটি নিয়েছেন।", {
+        rideId: row.id,
+      });
+    } catch (e) {
+      console.error("[notify] accept broadcast failed", e);
+    }
     return mapRide(row);
   });
 
