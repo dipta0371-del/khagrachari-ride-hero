@@ -152,3 +152,28 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
     </div>
   );
 }
+
+/** Ticks once a second on its own so the map above never re-renders. */
+function PeerStatus({ capturedAt, label }: { capturedAt: number | null; label: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (capturedAt === null) {
+    return <p className="text-sm text-muted-foreground">{label} লোকেশন এখনও আসেনি।</p>;
+  }
+  const age = Math.max(0, Math.round((Date.now() - capturedAt) / 1000));
+  const live = age <= 20;
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span
+        className={`inline-block size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-muted-foreground"}`}
+        aria-hidden
+      />
+      {live ? `${label} অবস্থান লাইভ` : `${label} সর্বশেষ অবস্থান ${bn(age)} সেকেন্ড আগে`}
+    </p>
+  );
+}
+
