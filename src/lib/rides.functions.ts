@@ -521,8 +521,10 @@ export const pushLocation = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const age = Date.now() - data.capturedAt;
-    if (age > LOCATION_STALE_MS || age < -5000) fail("লোকেশনের সময় সঠিক নয়।");
+    // Phone clocks can drift; clamp instead of rejecting the update.
+    const now = Date.now();
+    const age = now - data.capturedAt;
+    const capturedAt = age > LOCATION_STALE_MS || age < 0 ? now : data.capturedAt;
     const db = context.supabase as unknown as AnyClient;
     const { data: ride } = await db
       .from("rides")
@@ -538,7 +540,7 @@ export const pushLocation = createServerFn({ method: "POST" })
         lat: data.lat,
         lng: data.lng,
         accuracy: data.accuracy,
-        captured_at: new Date(data.capturedAt).toISOString(),
+        captured_at: new Date(capturedAt).toISOString(),
         received_at: new Date().toISOString(),
       },
       { onConflict: "ride_id,user_id" },
