@@ -24,11 +24,12 @@ const PIN_STYLES: Record<MapPin["kind"], { bg: string; glyph: string }> = {
 
 function pinIcon(kind: MapPin["kind"]) {
   const { bg, glyph } = PIN_STYLES[kind];
+  const size = kind === "place" ? 16 : 30;
   return L.divIcon({
     className: "",
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    html: `<span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:${bg};color:#fff;font-weight:700;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.35);border:2px solid #fff">${glyph}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    html: `<span style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:999px;background:${bg};color:#fff;font-weight:700;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.35);border:2px solid #fff">${glyph}</span>`,
   });
 }
 
