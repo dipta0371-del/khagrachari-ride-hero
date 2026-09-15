@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { registerPlugin } from "@capacitor/core";
+import type { BackgroundGeolocationPlugin, Location as BgLocation } from "@capacitor-community/background-geolocation";
 
 export async function isNativePlatform(): Promise<boolean> {
   try {
@@ -12,10 +13,10 @@ export async function isNativePlatform(): Promise<boolean> {
 export async function getPlatform(): Promise<"android" | "ios" | "web"> {
   try {
     const { Capacitor } = await import("@capacitor/core");
-    const platform = Capacitor.getPlatform();
-    if (platform === "android" || platform === "ios") return platform;
+    const p = Capacitor.getPlatform();
+    if (p === "android" || p === "ios") return p;
   } catch {
-    /* fall through */
+    /* web */
   }
   return "web";
 }
@@ -25,7 +26,7 @@ export type LocationCallback = (pos: { lat: number; lng: number; accuracy?: numb
 export async function startNativeLocationWatcher(callback: LocationCallback): Promise<() => void> {
   const native = await isNativePlatform();
   if (!native) throw new Error("native-only");
-  const { BackgroundGeolocation } = await import("@capacitor-community/background-geolocation");
+  const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
   const id = await BackgroundGeolocation.addWatcher(
     {
       backgroundMessage: "CHT GARI চালকের লোকেশন শেয়ার করা হচ্ছে",
@@ -33,9 +34,13 @@ export async function startNativeLocationWatcher(callback: LocationCallback): Pr
       distanceFilter: 20,
       requestPermissions: true,
     },
-    (location) => {
+    (location?: BgLocation) => {
       if (!location) return;
-      callback({ lat: location.latitude, lng: location.longitude, accuracy: location.accuracy ?? undefined });
+      callback({
+        lat: location.latitude,
+        lng: location.longitude,
+        accuracy: location.accuracy ?? undefined,
+      });
     },
   );
   return () => {
@@ -86,58 +91,4 @@ export async function scheduleLocalNotification(options: {
       },
     ],
   });
-}
-
-/** React hook that pushes the user's position to a ride while enabled.
- *  Uses native background location in the APK; falls back to browser geolocation on the web. */
-export function useLocationPusher({ rideId, enabled }: { rideId?: string; enabled: boolean }) {
-  const push = useServerFnPlaceholder<typeof import("@/lib/rides.functions").pushLocation>();
-  const lastSent = useRef(0);
-  const stopRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    if (!enabled || !rideId) {
-      stopRef.current?.();
-      stopRef.current = null;
-      return;
-    }
-    let active = true;
-
-    const send = (lat: number, lng: number, accuracy: number) => {
-      const now = Date.now();
-      if (now - lastSent.current < 5000) return;
-      lastSent.current = now;
-      push({ data: { rideId, lat, lng, accuracy, capturedAt: now } }).catch(() => {});
-    };
-
-    isNativePlatform().then((native) => {
-      if (!active) return;
-      if (native) {
-        startNativeLocationWatcher((pos) => send(pos.lat, pos.lng, pos.accuracy ?? 0)).then((stop) => {
-          if (active) stopRef.current = stop;
-        });
-      } else if ("geolocation" in navigator) {
-        const id = navigator.geolocation.watchPosition(
-          (p) => send(p.coords.latitude, p.coords.longitude, p.coords.accuracy ?? 0),
-          () => {},
-          { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 },
-        );
-        stopRef.current = () => navigator.geolocation.clearWatch(id);
-      }
-    });
-
-    return () => {
-      active = false;
-      stopRef.current?.();
-      stopRef.current = null;
-    };
-  }, [enabled, rideId, push]);
-}
-
-// Inline placeholder so the hook file stays self-contained until rides.functions is imported below.
-// This will be removed in the real hook implementation.
-function useServerFnPlaceholder<T>() {
-  return (() => {
-    throw new Error("useServerFn not available in native-bridge");
-  }) as unknown as (arg: { data: any }) => Promise<any>;
 }
