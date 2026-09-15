@@ -183,19 +183,14 @@ function DriverPage() {
               <div className="grid gap-2 sm:grid-cols-2">
                 <Field label="পিকআপ" value={active.pickup.name} />
                 <Field label="গন্তব্য" value={active.dropoff.name} />
-                <Field label="যাত্রী" value={active.riderName || "যাত্রী"} />
                 <Field label="ভাড়া (নগদ)" value={money(active.fare)} />
+                <Field label="যাত্রী সংখ্যা" value={`${bn(active.passengers)} জন`} />
               </div>
+              <PartyCard kind="rider" phone={active.riderPhone ?? null} />
               {active.note && (
                 <p className="rounded-lg bg-secondary p-3 text-sm">নোট: {active.note}</p>
               )}
-              {active.riderPhone && (
-                <Button asChild variant="outline" className="w-full">
-                  <a href={`tel:${active.riderPhone}`}>
-                    <Phone className="size-4" aria-hidden /> যাত্রীকে কল করুন
-                  </a>
-                </Button>
-              )}
+
 
               <LiveTracking ride={active} me={me?.userId ?? ""} />
 

@@ -113,11 +113,13 @@ function RideCard({ ride, rated }: { ride: RideRow; rated: boolean }) {
           <span>{bn(ride.distance)} কিমি</span>
           <span className="font-semibold text-foreground">{money(ride.fare)}</span>
         </div>
-        {ride.driverName && (
+        {ride.driverId && (
           <p className="text-sm text-muted-foreground">
-            চালক: {ride.driverName} {ride.driverPlate ? `· ${ride.driverPlate}` : ""}
+            চালক: {vehicleLabels[ride.vehicle]}
+            {ride.driverPlate ? ` · ${ride.driverPlate}` : ""}
           </p>
         )}
+
 
         {ride.status === "completed" &&
           ride.driverId &&

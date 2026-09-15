@@ -127,28 +127,18 @@ function ActiveRide({ ride, meId }: { ride: RideRow; meId: string }) {
           </div>
 
           {ride.driverId ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
-              <div>
-                <p className="font-semibold">{ride.driverName || "চালক"}</p>
-                <p className="text-sm text-muted-foreground">
-                  {vehicleLabels[ride.vehicle]} · {ride.driverPlate || "নম্বর নেই"}
-                </p>
-              </div>
-              {ride.driverPhone ? (
-                <Button asChild variant="outline">
-                  <a href={`tel:${ride.driverPhone}`}>
-                    <Phone className="size-4" aria-hidden /> কল করুন
-                  </a>
-                </Button>
-              ) : (
-                <span className="text-xs text-muted-foreground">চালকের নম্বর যোগ করা নেই</span>
-              )}
-            </div>
+            <PartyCard
+              kind="driver"
+              vehicle={ride.vehicle}
+              plate={ride.driverPlate ?? null}
+              phone={ride.driverPhone ?? null}
+            />
           ) : (
             <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
               কাছের অনুমোদিত চালকদের কাছে আপনার অনুরোধ পৌঁছেছে। কেউ গ্রহণ করলেই এখানে দেখাবে।
             </p>
           )}
+
 
           <LiveTracking ride={ride} me={meId} />
 
