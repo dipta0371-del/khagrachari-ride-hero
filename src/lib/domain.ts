@@ -74,6 +74,15 @@ export function distanceKm(
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
 }
 
+/** Rough travel speed on Khagrachhari hill roads, used for arrival estimates. */
+export const AVG_SPEED_KMH: Record<Vehicle, number> = { bike: 18, tomtom: 12 };
+
+/** Minutes to cover a straight-line gap, padded 30% for hill roads. */
+export function etaMinutes(km: number, vehicle: Vehicle) {
+  const minutes = ((km * 1.3) / AVG_SPEED_KMH[vehicle]) * 60;
+  return Math.max(1, Math.round(minutes));
+}
+
 export interface FareBreakdown {
   distance: number;
   directKm: number;

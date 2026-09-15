@@ -6,12 +6,23 @@ import { toast } from "sonner";
 
 import { RideMap, type MapPin } from "@/components/map";
 import { Button } from "@/components/ui/button";
+import { bn, distanceKm, etaMinutes } from "@/lib/domain";
 import { getRideLocations, pushLocation, stopSharing } from "@/lib/rides.functions";
 import type { RideRow } from "@/lib/rides.functions";
 
+/** Statuses where each side should be broadcasting its position, Uber-style. */
+function shouldShare(ride: RideRow, isDriver: boolean) {
+  if (isDriver) return ["accepted", "arrived", "in_progress"].includes(ride.status);
+  return ["accepted", "arrived"].includes(ride.status);
+}
+
 export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
-  const [sharing, setSharing] = useState(false);
-  const watchRef = useRef<number | null>(null);
+  const isDriver = me === ride.driverId;
+  const autoShare = shouldShare(ride, isDriver);
+  const [muted, setMuted] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const sharing = autoShare && !muted && !denied;
+
   const lastSent = useRef(0);
   const push = useServerFn(pushLocation);
   const stop = useServerFn(stopSharing);
@@ -23,18 +34,17 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
     refetchInterval: 3500,
   });
 
-  // Stop sharing whenever the ride ends or the component goes away.
+  // Re-render every second so the "x সেকেন্ড আগে" label stays honest.
+  const [, setTick] = useState(0);
   useEffect(() => {
-    return () => {
-      if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
-    };
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
     if (!sharing) return;
     if (!("geolocation" in navigator)) {
-      toast.error("এই ডিভাইসে লোকেশন সাপোর্ট নেই।");
-      setSharing(false);
+      setDenied(true);
       return;
     }
     const id = navigator.geolocation.watchPosition(
@@ -53,24 +63,21 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
         }).catch(() => {});
       },
       () => {
+        setDenied(true);
         toast.error("লোকেশন পাওয়া যায়নি — ব্রাউজারে অনুমতি দিন।");
-        setSharing(false);
       },
       { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 },
     );
-    watchRef.current = id;
-    return () => {
-      navigator.geolocation.clearWatch(id);
-      watchRef.current = null;
-    };
+    return () => navigator.geolocation.clearWatch(id);
   }, [sharing, ride.id, push]);
 
   async function toggle() {
     if (sharing) {
-      setSharing(false);
+      setMuted(true);
       await stop({ data: { rideId: ride.id } }).catch(() => {});
     } else {
-      setSharing(true);
+      setMuted(false);
+      setDenied(false);
     }
   }
 
@@ -81,16 +88,49 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
   if (peers?.rider) pins.push({ lat: peers.rider.lat, lng: peers.rider.lng, kind: "rider" });
   if (peers?.driver) pins.push({ lat: peers.driver.lat, lng: peers.driver.lng, kind: "driver" });
 
-  const other = me === ride.riderId ? peers?.driver : peers?.rider;
+  const other = isDriver ? peers?.rider : peers?.driver;
+  const otherLabel = isDriver ? "যাত্রীর" : "চালকের";
+  const age = other ? Math.max(0, Math.round((Date.now() - other.capturedAt) / 1000)) : null;
+  const live = age !== null && age <= 20;
+
+  // Driver → pickup before the trip starts, driver → destination during the trip.
+  const target = ride.status === "in_progress" ? ride.dropoff : ride.pickup;
+  const targetLabel = ride.status === "in_progress" ? "গন্তব্যে" : "পিকআপে";
+  const driverPos = peers?.driver;
+  const gapKm = driverPos ? distanceKm(driverPos, target) : null;
+  const eta = gapKm !== null ? etaMinutes(gapKm, ride.vehicle) : null;
 
   return (
     <div className="space-y-3">
       <RideMap pins={pins} className="h-64 w-full overflow-hidden rounded-xl border sm:h-80" />
+
+      {eta !== null && gapKm !== null && (
+        <div className="flex items-center justify-between rounded-xl border bg-muted/40 px-3 py-2">
+          <span className="text-sm font-medium">
+            {ride.status === "in_progress" ? "গন্তব্যে পৌঁছাতে" : "চালক পৌঁছাবেন"} প্রায় {bn(eta)}{" "}
+            মিনিটে
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {targetLabel} আর {bn(Math.max(0.1, Math.round(gapKm * 10) / 10))} কিমি
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          {other
-            ? `${me === ride.riderId ? "চালকের" : "যাত্রীর"} সর্বশেষ অবস্থান ${Math.round((Date.now() - other.capturedAt) / 1000)} সেকেন্ড আগে`
-            : "সঙ্গীর লোকেশন এখনও আসেনি — দুজনেই শেয়ার চালু করুন।"}
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          {other ? (
+            <>
+              <span
+                className={`inline-block size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-muted-foreground"}`}
+                aria-hidden
+              />
+              {live
+                ? `${otherLabel} অবস্থান লাইভ`
+                : `${otherLabel} সর্বশেষ অবস্থান ${bn(age ?? 0)} সেকেন্ড আগে`}
+            </>
+          ) : (
+            `${otherLabel} লোকেশন এখনও আসেনি।`
+          )}
         </p>
         <Button variant={sharing ? "secondary" : "default"} size="sm" onClick={toggle}>
           {sharing ? (
@@ -104,9 +144,17 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
           )}
         </Button>
       </div>
+
+      {denied && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          লোকেশন বন্ধ আছে। ব্রাউজারের ঠিকানা বারের পাশে থাকা আইকনে ট্যাপ করে এই সাইটকে লোকেশন
+          অনুমতি দিন, তারপর আবার শেয়ার চালু করুন।
+        </p>
+      )}
+
       <p className="text-xs text-muted-foreground">
-        লোকেশন শুধু এই রাইডের সময় শেয়ার হয় এবং রাইড শেষ হলে মুছে যায়। ব্রাউজার ব্যাকগ্রাউন্ডে
-        গেলে বা ফোন লক হলে শেয়ার থেমে যেতে পারে।
+        রাইড চলাকালীন আপনার অবস্থান আপনাআপনি শেয়ার হয় এবং রাইড শেষ হলে মুছে যায়। ব্রাউজার
+        ব্যাকগ্রাউন্ডে গেলে বা ফোন লক হলে শেয়ার থেমে যেতে পারে।
       </p>
     </div>
   );
