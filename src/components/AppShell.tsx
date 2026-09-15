@@ -44,6 +44,7 @@ function navFor(roles: string[]) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  usePushRegistration();
   const { data: me } = useMe();
   const navigate = useNavigate();
   const router = useRouter();
