@@ -540,7 +540,7 @@ export const pushLocation = createServerFn({ method: "POST" })
         lat: data.lat,
         lng: data.lng,
         accuracy: data.accuracy,
-        captured_at: new Date(data.capturedAt).toISOString(),
+        captured_at: new Date(capturedAt).toISOString(),
         received_at: new Date().toISOString(),
       },
       { onConflict: "ride_id,user_id" },
