@@ -1,4 +1,4 @@
-# পাহাড়ি · Pahari — Move to Lovable, Polish, and Launch
+# CHT GARI — Move to Lovable, Polish, and Launch
 
 ## What you have today
 I downloaded and reviewed the zip. It's a genuinely well-built Bangla-first ride-booking MVP for Khagrachari:
@@ -38,7 +38,7 @@ Replace the local file database with Lovable Cloud (hosted database + logins + s
 - Admin role stored securely, never editable from the browser.
 
 ### Phase 4 — Design upgrade
-- A distinct visual identity for পাহাড়ি — hill-district palette, not a generic template.
+- A distinct visual identity for CHT GARI — hill-district palette, not a generic template.
 - Polished mobile-first booking screen, clearer ride-status tracking, better driver dashboard, cleaner admin tables.
 - Keep the Bengali typography and accessibility work you already did.
 
@@ -66,4 +66,4 @@ Confirm priorities with you, from this shortlist:
 ## Decisions needed from you
 1. Should riders and drivers sign in with **phone number** or **email**?
 2. Which Phase 5 features matter most for your first real launch?
-3. Keep the name **পাহাড়ি / Pahari**, or rebrand?
+3. ~~Keep the name পাহাড়ি / Pahari, or rebrand?~~ Rebrand to **CHT GARI**.
