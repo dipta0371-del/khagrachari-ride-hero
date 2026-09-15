@@ -1,4 +1,4 @@
-# পাহাড়ি · Pahari — Move to Lovable, Polish, and Launch
+# CHT GARI — Move to Lovable, Polish, and Launch
 
 ## What you have today
 I downloaded and reviewed the zip. It's a genuinely well-built Bangla-first ride-booking MVP for Khagrachari:
