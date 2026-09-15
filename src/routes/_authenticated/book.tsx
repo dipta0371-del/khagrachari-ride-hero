@@ -28,6 +28,7 @@ import {
   statusLabels,
   vehicleLabels,
   type Point,
+  type Rates,
   type Vehicle,
 } from "@/lib/domain";
 import { bookRide, cancelRide, getMyRides, type RideRow } from "@/lib/rides.functions";
