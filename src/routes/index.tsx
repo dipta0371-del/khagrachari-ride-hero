@@ -243,7 +243,7 @@ function Landing() {
         </p>
         <RideMap
           showZone
-          pins={places.map((p) => ({ ...p, kind: "pickup" as const }))}
+          pins={places.map((p) => ({ ...p, kind: "place" as const }))}
           className="mt-5 h-72 w-full overflow-hidden rounded-xl border sm:h-96"
         />
       </section>

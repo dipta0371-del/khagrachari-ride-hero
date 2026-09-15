@@ -19,6 +19,7 @@ const PIN_STYLES: Record<MapPin["kind"], { bg: string; glyph: string }> = {
   dropoff: { bg: "var(--color-accent)", glyph: "B" },
   rider: { bg: "var(--color-chart-3)", glyph: "য" },
   driver: { bg: "var(--color-primary)", glyph: "চ" },
+  place: { bg: "var(--color-primary)", glyph: "" },
 };
 
 function pinIcon(kind: MapPin["kind"]) {
