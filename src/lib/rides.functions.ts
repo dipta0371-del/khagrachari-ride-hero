@@ -615,7 +615,9 @@ export const getAdminBoard = createServerFn({ method: "GET" })
       .from("profiles")
       .select("id, full_name, phone")
       .in("id", driverIds.length ? driverIds : ["00000000-0000-0000-0000-000000000000"]);
-    const pMap = new Map((driverProfiles ?? []).map((p: any) => [p.id, p]));
+    const pMap = new Map<string, any>(
+      ((driverProfiles ?? []) as any[]).map((p: any) => [p.id, p] as [string, any]),
+    );
 
     const completed = rides.filter((r) => r.status === "completed");
     const today = new Date();
