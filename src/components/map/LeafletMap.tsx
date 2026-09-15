@@ -62,11 +62,11 @@ export default function LeafletMap({
   showZone = false,
   className = "",
 }: {
-  pins?: MapPin[];
-  onPick?: (lat: number, lng: number) => void;
-  follow?: boolean;
-  showZone?: boolean;
-  className?: string;
+  pins?: MapPin[] | undefined;
+  onPick?: ((lat: number, lng: number) => void) | undefined;
+  follow?: boolean | undefined;
+  showZone?: boolean | undefined;
+  className?: string | undefined;
 }) {
   return (
     <div className={className}>

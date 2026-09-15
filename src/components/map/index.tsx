@@ -8,7 +8,7 @@ export type { MapPin };
 // Leaflet touches `window` at import time, so it must never enter the SSR graph.
 const LeafletMap = lazy(() => import("./LeafletMap"));
 
-function MapSkeleton({ className }: { className?: string }) {
+function MapSkeleton({ className }: { className?: string | undefined }) {
   return (
     <div
       className={`grid place-items-center bg-muted text-sm text-muted-foreground ${className ?? ""}`}
@@ -18,13 +18,15 @@ function MapSkeleton({ className }: { className?: string }) {
   );
 }
 
-export function RideMap(props: {
-  pins?: MapPin[];
-  onPick?: (lat: number, lng: number) => void;
-  follow?: boolean;
-  showZone?: boolean;
-  className?: string;
-}) {
+export interface RideMapProps {
+  pins?: MapPin[] | undefined;
+  onPick?: ((lat: number, lng: number) => void) | undefined;
+  follow?: boolean | undefined;
+  showZone?: boolean | undefined;
+  className?: string | undefined;
+}
+
+export function RideMap(props: RideMapProps) {
   return (
     <ClientOnly fallback={<MapSkeleton className={props.className} />}>
       <Suspense fallback={<MapSkeleton className={props.className} />}>
