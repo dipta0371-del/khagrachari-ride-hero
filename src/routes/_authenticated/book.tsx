@@ -183,7 +183,7 @@ function Leg({ label, value, tone }: { label: string; value: string; tone: "prim
 
 /* ---------------- booking form ---------------- */
 
-function BookingForm({ rates }: { rates: ReturnType<typeof Object> extends never ? never : any }) {
+function BookingForm({ rates }: { rates: Rates }) {
   const queryClient = useQueryClient();
   const [pickup, setPickup] = useState<Point | null>(places[0] ?? null);
   const [dropoff, setDropoff] = useState<Point | null>(null);
