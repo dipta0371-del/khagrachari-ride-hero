@@ -2,13 +2,14 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Star, TrendingUp } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
 import { LiveTracking } from "@/components/LiveTracking";
 import { PartyCard } from "@/components/PartyCard";
+import { PushSetupCard } from "@/components/PushSetupCard";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,37 @@ function DriverPage() {
     refetchInterval: 3500,
     placeholderData: keepPreviousData,
   });
-
+  // Beep + toast when a new request shows up while the panel is open.
+  const seenRef = useRef<Set<string>>(new Set());
+  const firstLoadRef = useRef(true);
+  useEffect(() => {
+    const queue = data?.queue ?? [];
+    if (firstLoadRef.current) {
+      if (!data) return;
+      queue.forEach((r) => seenRef.current.add(r.id));
+      firstLoadRef.current = false;
+      return;
+    }
+    const fresh = queue.filter((r) => !seenRef.current.has(r.id));
+    queue.forEach((r) => seenRef.current.add(r.id));
+    if (!fresh.length) return;
+    toast.info(`নতুন রাইড অনুরোধ · ${fresh[0]!.pickup.name}`);
+    try {
+      const Ctx = window.AudioContext ?? (window as any).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.15;
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+      setTimeout(() => void ctx.close(), 600);
+    } catch {
+      /* audio blocked until the driver interacts with the page */
+    }
+  }, [data]);
 
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["driver-board"] });
@@ -157,6 +188,10 @@ function DriverPage() {
             </label>
           </CardContent>
         </Card>
+
+        {driver.approved && <PushSetupCard />}
+
+
 
         {earnings && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
