@@ -66,4 +66,4 @@ Confirm priorities with you, from this shortlist:
 ## Decisions needed from you
 1. Should riders and drivers sign in with **phone number** or **email**?
 2. Which Phase 5 features matter most for your first real launch?
-3. Keep the name **পাহাড়ি / Pahari**, or rebrand?
+3. ~~Keep the name পাহাড়ি / Pahari, or rebrand?~~ Rebrand to **CHT GARI**.
