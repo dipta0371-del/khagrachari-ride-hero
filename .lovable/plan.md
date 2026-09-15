@@ -43,15 +43,17 @@ Replace the local file database with Lovable Cloud (hosted database + logins + s
 - Polished mobile-first booking screen, clearer ride-status tracking, better driver dashboard, cleaner admin tables.
 - Keep the Bengali typography and accessibility work you already did.
 
-### Phase 5 — Missing features
-Confirm priorities with you, from this shortlist:
-- Ratings after a ride
-- Fare breakdown shown to the rider
-- Driver earnings summary
-- Ride notifications
-- Better matching / nearest-driver ordering
-- Phone number capture for rider–driver contact
-- Admin stats dashboard
+### Phase 5 — Missing features (my picks, in order)
+For a real ride-sharing launch these matter most, so I'll build them in this order:
+
+1. **Phone numbers and in-ride contact** — a rider must be able to call their driver. Without this the app can't be used for real trips.
+2. **Ratings and reports after a ride** — the only trust and safety signal you have. Riders rate drivers, drivers rate riders, admin sees low scores.
+3. **Fare breakdown shown before booking** — base + per-km + minimum spelled out, so nobody argues about price at the end.
+4. **Driver earnings summary** — today's and this week's completed rides and cash totals. Drivers won't stay without it.
+5. **Smarter driver matching** — show pending requests nearest-first instead of a plain list.
+6. **Admin stats dashboard** — daily rides, completion rate, cancellations, active drivers.
+
+Ride notifications (SMS/push) are deliberately left for later: they need a paid SMS provider and a native app for reliable push.
 
 ### Phase 6 — Launch
 - Security scan, build check, end-to-end test of the full booking flow.
