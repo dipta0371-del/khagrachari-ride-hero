@@ -32,25 +32,28 @@ Replace the local file database with Lovable Cloud (hosted database + logins + s
 - Security rules so riders only see their own rides, drivers only their assigned ride, and admins everything.
 - Seed the demo drivers and starting fares so the app is usable the moment it opens.
 
-### Phase 3 — Real accounts
-- Sign up and sign in for riders and drivers.
+### Phase 3 — Real accounts (email sign-up)
+- Riders and drivers sign up and sign in with **email and password**. Phone sign-in comes later.
+- Profile stores name and an optional phone number for rider–driver contact during a ride.
 - Driver registration with vehicle type and plate, pending admin approval before they can accept rides.
-- Admin role stored securely, never editable from the browser.
+- Admin role stored securely in a separate roles table, never editable from the browser.
 
 ### Phase 4 — Design upgrade
 - A distinct visual identity for CHT GARI — hill-district palette, not a generic template.
 - Polished mobile-first booking screen, clearer ride-status tracking, better driver dashboard, cleaner admin tables.
 - Keep the Bengali typography and accessibility work you already did.
 
-### Phase 5 — Missing features
-Confirm priorities with you, from this shortlist:
-- Ratings after a ride
-- Fare breakdown shown to the rider
-- Driver earnings summary
-- Ride notifications
-- Better matching / nearest-driver ordering
-- Phone number capture for rider–driver contact
-- Admin stats dashboard
+### Phase 5 — Missing features (my picks, in order)
+For a real ride-sharing launch these matter most, so I'll build them in this order:
+
+1. **Phone numbers and in-ride contact** — a rider must be able to call their driver. Without this the app can't be used for real trips.
+2. **Ratings and reports after a ride** — the only trust and safety signal you have. Riders rate drivers, drivers rate riders, admin sees low scores.
+3. **Fare breakdown shown before booking** — base + per-km + minimum spelled out, so nobody argues about price at the end.
+4. **Driver earnings summary** — today's and this week's completed rides and cash totals. Drivers won't stay without it.
+5. **Smarter driver matching** — show pending requests nearest-first instead of a plain list.
+6. **Admin stats dashboard** — daily rides, completion rate, cancellations, active drivers.
+
+Ride notifications (SMS/push) are deliberately left for later: they need a paid SMS provider and a native app for reliable push.
 
 ### Phase 6 — Launch
 - Security scan, build check, end-to-end test of the full booking flow.
@@ -63,7 +66,7 @@ Confirm priorities with you, from this shortlist:
 - Polling intervals (3.5 s status, 5 s location upload) carry over initially; live location can move to realtime subscriptions later.
 - Idempotent booking, atomic ride acceptance, and the partial unique indexes for one-active-ride become Postgres constraints plus row-level security policies.
 
-## Decisions needed from you
-1. Should riders and drivers sign in with **phone number** or **email**?
-2. Which Phase 5 features matter most for your first real launch?
-3. ~~Keep the name পাহাড়ি / Pahari, or rebrand?~~ Rebrand to **CHT GARI**.
+## Decisions confirmed
+1. Sign-up by **email and password**; phone sign-in added later.
+2. Feature priority chosen by me — see Phase 5 above.
+3. Brand is **CHT GARI**. Bangla interface stays; brand name shown in Latin script.
