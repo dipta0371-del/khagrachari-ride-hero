@@ -73,6 +73,15 @@ export async function registerPushToken(): Promise<{
   });
 }
 
+function idToNumber(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) || 1;
+}
+
 export async function scheduleLocalNotification(options: {
   id: string;
   title: string;
@@ -84,7 +93,7 @@ export async function scheduleLocalNotification(options: {
   await LocalNotifications.schedule({
     notifications: [
       {
-        id: options.id,
+        id: idToNumber(options.id),
         title: options.title,
         body: options.body,
         schedule: { at: new Date(Date.now() + 600) },
