@@ -66,7 +66,7 @@ Ride notifications (SMS/push) are deliberately left for later: they need a paid 
 - Polling intervals (3.5 s status, 5 s location upload) carry over initially; live location can move to realtime subscriptions later.
 - Idempotent booking, atomic ride acceptance, and the partial unique indexes for one-active-ride become Postgres constraints plus row-level security policies.
 
-## Decisions needed from you
-1. Should riders and drivers sign in with **phone number** or **email**?
-2. Which Phase 5 features matter most for your first real launch?
-3. ~~Keep the name পাহাড়ি / Pahari, or rebrand?~~ Rebrand to **CHT GARI**.
+## Decisions confirmed
+1. Sign-up by **email and password**; phone sign-in added later.
+2. Feature priority chosen by me — see Phase 5 above.
+3. Brand is **CHT GARI**. Bangla interface stays; brand name shown in Latin script.
