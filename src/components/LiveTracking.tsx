@@ -36,12 +36,9 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
     refetchInterval: 3500,
   });
 
-  // Re-render every second so the "x সেকেন্ড আগে" label stays honest.
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
+  // The per-second "x সেকেন্ড আগে" ticking lives in <PeerStatus/> so it never
+  // re-renders the whole map.
+
 
   // Surface a clear warning when the browser location permission is denied.
   useEffect(() => {
@@ -100,8 +97,7 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
 
   const other = isDriver ? peers?.rider : peers?.driver;
   const otherLabel = isDriver ? "যাত্রীর" : "চালকের";
-  const age = other ? Math.max(0, Math.round((Date.now() - other.capturedAt) / 1000)) : null;
-  const live = age !== null && age <= 20;
+
 
   // Driver → pickup before the trip starts, driver → destination during the trip.
   const target = ride.status === "in_progress" ? ride.dropoff : ride.pickup;
@@ -127,21 +123,8 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          {other ? (
-            <>
-              <span
-                className={`inline-block size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-muted-foreground"}`}
-                aria-hidden
-              />
-              {live
-                ? `${otherLabel} অবস্থান লাইভ`
-                : `${otherLabel} সর্বশেষ অবস্থান ${bn(age ?? 0)} সেকেন্ড আগে`}
-            </>
-          ) : (
-            `${otherLabel} লোকেশন এখনও আসেনি।`
-          )}
-        </p>
+        <PeerStatus capturedAt={other?.capturedAt ?? null} label={otherLabel} />
+
         <Button variant={sharing ? "secondary" : "default"} size="sm" onClick={toggle}>
           {sharing ? (
             <>
@@ -169,3 +152,28 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
     </div>
   );
 }
+
+/** Ticks once a second on its own so the map above never re-renders. */
+function PeerStatus({ capturedAt, label }: { capturedAt: number | null; label: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (capturedAt === null) {
+    return <p className="text-sm text-muted-foreground">{label} লোকেশন এখনও আসেনি।</p>;
+  }
+  const age = Math.max(0, Math.round((Date.now() - capturedAt) / 1000));
+  const live = age <= 20;
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span
+        className={`inline-block size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-muted-foreground"}`}
+        aria-hidden
+      />
+      {live ? `${label} অবস্থান লাইভ` : `${label} সর্বশেষ অবস্থান ${bn(age)} সেকেন্ড আগে`}
+    </p>
+  );
+}
+

@@ -1,12 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Phone, Star, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { Loader2, Star, TrendingUp } from "lucide-react";
+import { useRef } from "react";
+
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
 import { LiveTracking } from "@/components/LiveTracking";
+import { PartyCard } from "@/components/PartyCard";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,13 +50,22 @@ function DriverPage() {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
   const pos = useCurrentPosition();
+  // Keep the position out of the query key: GPS jitter must not reset the board.
+  const posRef = useRef(pos);
+  posRef.current = pos;
 
   const boardFn = useServerFn(getDriverBoard);
   const { data, isLoading } = useQuery({
-    queryKey: ["driver-board", pos?.lat ?? null, pos?.lng ?? null],
-    queryFn: () => boardFn({ data: pos ? { lat: pos.lat, lng: pos.lng } : {} }),
+    queryKey: ["driver-board"],
+    queryFn: () => {
+      const p = posRef.current;
+      return boardFn({ data: p ? { lat: p.lat, lng: p.lng } : {} });
+    },
     refetchInterval: 3500,
+    placeholderData: keepPreviousData,
   });
+
+
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["driver-board"] });
   const onlineFn = useServerFn(setDriverOnline);
@@ -171,19 +183,14 @@ function DriverPage() {
               <div className="grid gap-2 sm:grid-cols-2">
                 <Field label="পিকআপ" value={active.pickup.name} />
                 <Field label="গন্তব্য" value={active.dropoff.name} />
-                <Field label="যাত্রী" value={active.riderName || "যাত্রী"} />
                 <Field label="ভাড়া (নগদ)" value={money(active.fare)} />
+                <Field label="যাত্রী সংখ্যা" value={`${bn(active.passengers)} জন`} />
               </div>
+              <PartyCard kind="rider" phone={active.riderPhone ?? null} />
               {active.note && (
                 <p className="rounded-lg bg-secondary p-3 text-sm">নোট: {active.note}</p>
               )}
-              {active.riderPhone && (
-                <Button asChild variant="outline" className="w-full">
-                  <a href={`tel:${active.riderPhone}`}>
-                    <Phone className="size-4" aria-hidden /> যাত্রীকে কল করুন
-                  </a>
-                </Button>
-              )}
+
 
               <LiveTracking ride={active} me={me?.userId ?? ""} />
 
