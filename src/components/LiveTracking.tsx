@@ -6,8 +6,10 @@ import { toast } from "sonner";
 
 import { RideMap, type MapPin } from "@/components/map";
 import { Button } from "@/components/ui/button";
-import { bn, distanceKm, etaMinutes } from "@/lib/domain";
-import { getRideLocations, pushLocation, stopSharing } from "@/lib/rides.functions";
+import { useLocationPusher } from "@/hooks/useLocationPusher";
+import { scheduleLocalNotification } from "@/integrations/native/native-bridge";
+import { bn, distanceKm, etaMinutes, statusLabels } from "@/lib/domain";
+import { getRideLocations, stopSharing } from "@/lib/rides.functions";
 import type { RideRow } from "@/lib/rides.functions";
 
 /** Statuses where each side should be broadcasting its position, Uber-style. */
@@ -23,10 +25,10 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
   const [denied, setDenied] = useState(false);
   const sharing = autoShare && !muted && !denied;
 
-  const lastSent = useRef(0);
-  const push = useServerFn(pushLocation);
   const stop = useServerFn(stopSharing);
   const fetchLocations = useServerFn(getRideLocations);
+
+  useLocationPusher({ rideId: ride.id, enabled: sharing });
 
   const { data: peers } = useQuery({
     queryKey: ["ride-locations", ride.id],
@@ -41,35 +43,43 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
     return () => clearInterval(t);
   }, []);
 
+  // Surface a clear warning when the browser location permission is denied.
   useEffect(() => {
     if (!sharing) return;
     if (!("geolocation" in navigator)) {
       setDenied(true);
       return;
     }
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        const now = Date.now();
-        if (now - lastSent.current < 5000) return;
-        lastSent.current = now;
-        void push({
-          data: {
-            rideId: ride.id,
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy ?? 0,
-            capturedAt: Math.min(now, pos.timestamp || now),
-          },
-        }).catch(() => {});
-      },
-      () => {
-        setDenied(true);
-        toast.error("লোকেশন পাওয়া যায়নি — ব্রাউজারে অনুমতি দিন।");
-      },
-      { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [sharing, ride.id, push]);
+    const perm = navigator.permissions;
+    if (!perm) return;
+    perm
+      .query({ name: "geolocation" } as PermissionDescriptor)
+      .then((r) => {
+        if (r.state === "denied") setDenied(true);
+      })
+      .catch(() => {});
+  }, [sharing]);
+
+  // Notify the user on important ride status changes when running as an app.
+  const lastNotified = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastNotified.current === ride.status) return;
+    lastNotified.current = ride.status;
+    const title = `${statusLabels[ride.status]} — CHT GARI`;
+    const body =
+      ride.status === "accepted"
+        ? "চালক আপনার রাইডটি গ্রহণ করেছেন।"
+        : ride.status === "arrived"
+          ? "চালক পিকআপ স্পটে পৌঁছেছেন।"
+          : ride.status === "in_progress"
+            ? "যাত্রা শুরু হয়েছে।"
+            : ride.status === "completed"
+              ? "রাইড শেষ হয়েছে। ভাড়া নগদে পরিশোধ করুন।"
+              : null;
+    if (body) {
+      void scheduleLocalNotification({ id: `${ride.id}-${ride.status}`, title, body });
+    }
+  }, [ride.id, ride.status]);
 
   async function toggle() {
     if (sharing) {

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Phone, Star, TrendingUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { useCurrentPosition } from "@/hooks/useCurrentPosition";
 import { useMe } from "@/hooks/useMe";
 import {
   bn,
@@ -45,17 +46,7 @@ export const Route = createFileRoute("/_authenticated/driver")({
 function DriverPage() {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
-  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
-
-  useEffect(() => {
-    if (!("geolocation" in navigator)) return;
-    const id = navigator.geolocation.watchPosition(
-      (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 15000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
+  const pos = useCurrentPosition();
 
   const boardFn = useServerFn(getDriverBoard);
   const { data, isLoading } = useQuery({

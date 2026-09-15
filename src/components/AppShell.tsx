@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useMe } from "@/hooks/useMe";
+import { usePushRegistration } from "@/hooks/usePushRegistration";
 import { supabase } from "@/integrations/supabase/client";
 import { BRAND } from "@/lib/domain";
 
@@ -43,6 +44,7 @@ function navFor(roles: string[]) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  usePushRegistration();
   const { data: me } = useMe();
   const navigate = useNavigate();
   const router = useRouter();

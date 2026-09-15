@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { notifyUser } from "@/lib/notifications.functions";
 import {
   DEFAULT_RATES,
   LOCATION_STALE_MS,
@@ -328,6 +329,17 @@ export const cancelRide = createServerFn({ method: "POST" })
       .eq("id", data.rideId);
     if (error) fail(error.message);
     await db.from("ride_locations").delete().eq("ride_id", data.rideId);
+
+    if (byRider && ride.driver_id) {
+      await notifyUser(ride.driver_id, "রাইড বাতিল", "যাত্রী রাইডটি বাতিল করেছেন।", {
+        rideId: data.rideId,
+      });
+    } else if (!byRider && ride.rider_id) {
+      await notifyUser(ride.rider_id, "রাইড বাতিল", "চালক রাইডটি বাতিল করেছেন।", {
+        rideId: data.rideId,
+      });
+    }
+
     return { ok: true };
   });
 
@@ -481,6 +493,9 @@ export const acceptRide = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) fail("রাইড নেওয়া যায়নি — আপনার আরেকটি রাইড চলছে অথবা অনুমোদন নেই।");
     if (!row) fail("এই রাইড অন্য একজন চালক নিয়ে নিয়েছেন।");
+    await notifyUser(row.rider_id, "রাইড গ্রহণ হয়েছে", "আপনার চালক পিকআপে আসছেন।", {
+      rideId: row.id,
+    });
     return mapRide(row);
   });
 
@@ -491,7 +506,7 @@ export const advanceRide = createServerFn({ method: "POST" })
     const db = context.supabase as unknown as AnyClient;
     const { data: ride } = await db
       .from("rides")
-      .select("status, driver_id")
+      .select("status, driver_id, rider_id")
       .eq("id", data.rideId)
       .maybeSingle();
     if (!ride || ride.driver_id !== context.userId) fail("এই রাইড আপনার নয়।");
@@ -500,6 +515,21 @@ export const advanceRide = createServerFn({ method: "POST" })
     const { error } = await db.from("rides").update({ status: next }).eq("id", data.rideId);
     if (error) fail(error.message);
     if (next === "completed") await db.from("ride_locations").delete().eq("ride_id", data.rideId);
+
+    if (next === "arrived") {
+      await notifyUser(ride.rider_id, "চালক পৌঁছেছেন", "আপনার চালক পিকআপ স্পটে পৌঁছেছেন।", {
+        rideId: data.rideId,
+      });
+    } else if (next === "in_progress") {
+      await notifyUser(ride.rider_id, "যাত্রা শুরু", "আপনার রাইড শুরু হয়েছে।", {
+        rideId: data.rideId,
+      });
+    } else if (next === "completed") {
+      await notifyUser(ride.rider_id, "রাইড শেষ", "ভাড়া নগদে পরিশোধ করুন। ধন্যবাদ!", {
+        rideId: data.rideId,
+      });
+    }
+
     return { status: next };
   });
 
