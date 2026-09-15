@@ -421,13 +421,16 @@ export const getDriverBoard = createServerFn({ method: "POST" })
         .limit(200),
     ]);
 
-    let queue = (openRows ?? []).map(mapRide);
+    let queue: RideRow[] = ((openRows ?? []) as any[]).map(mapRide);
     if (typeof data.lat === "number" && typeof data.lng === "number") {
       const me = { lat: data.lat, lng: data.lng };
       queue = queue
-        .map((r) => ({ r, d: distanceKm(me, r.pickup) }))
-        .sort((a, b) => a.d - b.d)
-        .map(({ r, d }) => ({ ...r, pickupAwayKm: Math.round(d * 10) / 10 }) as RideRow);
+        .map((r: RideRow) => ({ r, d: distanceKm(me, r.pickup) }))
+        .sort((a: { d: number }, b: { d: number }) => a.d - b.d)
+        .map(({ r, d }: { r: RideRow; d: number }) => ({
+          ...r,
+          pickupAwayKm: Math.round(d * 10) / 10,
+        }) as RideRow);
     }
 
     const startOfDay = new Date();
