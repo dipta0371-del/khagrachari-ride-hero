@@ -1,0 +1,302 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { Loader2, Phone, Star, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { AppShell } from "@/components/AppShell";
+import { LiveTracking } from "@/components/LiveTracking";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { useMe } from "@/hooks/useMe";
+import {
+  bn,
+  driverActionLabels,
+  money,
+  statusLabels,
+  timeBn,
+  vehicleLabels,
+  type RideStatus,
+  type Vehicle,
+} from "@/lib/domain";
+import {
+  acceptRide,
+  advanceRide,
+  cancelRide,
+  getDriverBoard,
+  setDriverOnline,
+} from "@/lib/rides.functions";
+
+export const Route = createFileRoute("/_authenticated/driver")({
+  head: () => ({
+    meta: [
+      { title: "চালক প্যানেল — CHT GARI" },
+      { name: "description", content: "রাইডের অনুরোধ দেখুন, গ্রহণ করুন এবং আয়ের হিসাব রাখুন।" },
+      { property: "og:title", content: "চালক প্যানেল — CHT GARI" },
+      { property: "og:description", content: "কাছের রাইড আগে দেখুন এবং আয়ের হিসাব রাখুন।" },
+    ],
+  }),
+  component: DriverPage,
+});
+
+function DriverPage() {
+  const { data: me } = useMe();
+  const queryClient = useQueryClient();
+  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    const id = navigator.geolocation.watchPosition(
+      (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+
+  const boardFn = useServerFn(getDriverBoard);
+  const { data, isLoading } = useQuery({
+    queryKey: ["driver-board", pos?.lat ?? null, pos?.lng ?? null],
+    queryFn: () => boardFn({ data: pos ? { lat: pos.lat, lng: pos.lng } : {} }),
+    refetchInterval: 3500,
+  });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["driver-board"] });
+  const onlineFn = useServerFn(setDriverOnline);
+  const acceptFn = useServerFn(acceptRide);
+  const advanceFn = useServerFn(advanceRide);
+  const cancelFn = useServerFn(cancelRide);
+
+  const toggleOnline = useMutation({
+    mutationFn: (online: boolean) => onlineFn({ data: { online } }),
+    onSuccess: () => refresh(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const accept = useMutation({
+    mutationFn: (rideId: string) => acceptFn({ data: { rideId } }),
+    onSuccess: () => {
+      toast.success("রাইড গ্রহণ করা হয়েছে");
+      void refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const advance = useMutation({
+    mutationFn: (rideId: string) => advanceFn({ data: { rideId } }),
+    onSuccess: () => refresh(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const drop = useMutation({
+    mutationFn: (rideId: string) => cancelFn({ data: { rideId } }),
+    onSuccess: () => {
+      toast.success("রাইড বাতিল হয়েছে");
+      void refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (isLoading && !data) {
+    return (
+      <AppShell>
+        <div className="grid h-64 place-items-center text-muted-foreground">
+          <Loader2 className="size-6 animate-spin" aria-hidden />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!data?.driver) {
+    return (
+      <AppShell>
+        <Card className="mx-auto max-w-lg">
+          <CardHeader>
+            <CardTitle>চালক হিসেবে নিবন্ধন করুন</CardTitle>
+            <CardDescription>
+              প্রোফাইল পাতায় গিয়ে আপনার যান ও গাড়ির নম্বর দিন। অ্যাডমিন অনুমোদন দিলেই রাইড নিতে
+              পারবেন।
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link to="/profile">প্রোফাইলে যান</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </AppShell>
+    );
+  }
+
+  const { driver, queue, active, earnings } = data;
+
+  return (
+    <AppShell>
+      <div className="space-y-5">
+        <Card className="shadow-ridge">
+          <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
+            <div>
+              <p className="font-display text-xl font-bold">
+                {vehicleLabels[driver.vehicle as Vehicle]} · {driver.plate || "নম্বর নেই"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {driver.approved ? "অনুমোদিত চালক" : "অ্যাডমিন অনুমোদনের অপেক্ষায়"}
+              </p>
+            </div>
+            <label className="flex items-center gap-3">
+              <span className="text-sm font-medium">{driver.online ? "অনলাইন" : "অফলাইন"}</span>
+              <Switch
+                checked={driver.online}
+                disabled={!driver.approved || toggleOnline.isPending}
+                onCheckedChange={(v) => toggleOnline.mutate(v)}
+                aria-label="অনলাইন/অফলাইন"
+              />
+            </label>
+          </CardContent>
+        </Card>
+
+        {earnings && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="আজকের আয়" value={money(earnings.todayTotal)} sub={`${bn(earnings.todayCount)} রাইড`} />
+            <Stat label="৭ দিনের আয়" value={money(earnings.weekTotal)} sub={`${bn(earnings.weekCount)} রাইড`} />
+            <Stat label="মোট আয়" value={money(earnings.allTotal)} sub={`${bn(earnings.allCount)} রাইড`} />
+            <Stat
+              label="রেটিং"
+              value={earnings.rating ? `${bn(earnings.rating)} ★` : "—"}
+              sub={earnings.ratingCount ? `${bn(earnings.ratingCount)} জন` : "এখনও নেই"}
+            />
+          </div>
+        )}
+
+        {active ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="font-display text-xl">চলমান রাইড</CardTitle>
+                <Badge>{statusLabels[active.status]}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Field label="পিকআপ" value={active.pickup.name} />
+                <Field label="গন্তব্য" value={active.dropoff.name} />
+                <Field label="যাত্রী" value={active.riderName || "যাত্রী"} />
+                <Field label="ভাড়া (নগদ)" value={money(active.fare)} />
+              </div>
+              {active.note && (
+                <p className="rounded-lg bg-secondary p-3 text-sm">নোট: {active.note}</p>
+              )}
+              {active.riderPhone && (
+                <Button asChild variant="outline" className="w-full">
+                  <a href={`tel:${active.riderPhone}`}>
+                    <Phone className="size-4" aria-hidden /> যাত্রীকে কল করুন
+                  </a>
+                </Button>
+              )}
+
+              <LiveTracking ride={active} me={me?.userId ?? ""} />
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  size="lg"
+                  className="flex-1"
+                  onClick={() => advance.mutate(active.id)}
+                  disabled={advance.isPending}
+                >
+                  {driverActionLabels[active.status as RideStatus] ?? "পরবর্তী ধাপ"}
+                </Button>
+                {active.status !== "in_progress" && (
+                  <Button
+                    variant="outline"
+                    className="text-destructive"
+                    onClick={() => drop.mutate(active.id)}
+                    disabled={drop.isPending}
+                  >
+                    বাতিল
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="font-display text-xl">
+                নতুন অনুরোধ {queue.length > 0 && `(${bn(queue.length)})`}
+              </CardTitle>
+              <CardDescription>
+                {pos
+                  ? "আপনার সবচেয়ে কাছের পিকআপ আগে দেখানো হচ্ছে।"
+                  : "লোকেশন অনুমতি দিলে কাছের রাইড আগে দেখানো হবে।"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {!driver.approved ? (
+                <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                  অ্যাডমিন অনুমোদন দিলেই এখানে রাইডের অনুরোধ দেখতে পাবেন।
+                </p>
+              ) : queue.length === 0 ? (
+                <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                  এখন কোনো অনুরোধ নেই। অনলাইন থাকুন — নতুন অনুরোধ এলেই এখানে দেখাবে।
+                </p>
+              ) : (
+                queue.map((r) => (
+                  <div key={r.id} className="rounded-xl border p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{r.pickup.name}</p>
+                        <p className="text-sm text-muted-foreground">→ {r.dropoff.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {bn(r.distance)} কিমি · {bn(r.passengers)} জন · {timeBn(r.createdAt)}
+                          {(r as any).pickupAwayKm !== undefined &&
+                            ` · আপনার থেকে ${bn((r as any).pickupAwayKm)} কিমি`}
+                        </p>
+                      </div>
+                      <div className="text-end">
+                        <p className="text-xl font-bold">{money(r.fare)}</p>
+                      </div>
+                    </div>
+                    {r.note && <p className="mt-2 text-sm text-muted-foreground">নোট: {r.note}</p>}
+                    <Button
+                      className="mt-3 w-full"
+                      onClick={() => accept.mutate(r.id)}
+                      disabled={accept.isPending || !driver.online}
+                    >
+                      {driver.online ? "রাইড গ্রহণ করুন" : "আগে অনলাইন হোন"}
+                    </Button>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {label === "রেটিং" ? (
+          <Star className="size-3.5" aria-hidden />
+        ) : (
+          <TrendingUp className="size-3.5" aria-hidden />
+        )}
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-bold">{value}</p>
+      <p className="text-xs text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-medium">{value}</p>
+    </div>
+  );
+}

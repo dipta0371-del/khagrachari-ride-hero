@@ -28,6 +28,7 @@ import {
   statusLabels,
   vehicleLabels,
   type Point,
+  type Rates,
   type Vehicle,
 } from "@/lib/domain";
 import { bookRide, cancelRide, getMyRides, type RideRow } from "@/lib/rides.functions";
@@ -183,7 +184,7 @@ function Leg({ label, value, tone }: { label: string; value: string; tone: "prim
 
 /* ---------------- booking form ---------------- */
 
-function BookingForm({ rates }: { rates: ReturnType<typeof Object> extends never ? never : any }) {
+function BookingForm({ rates }: { rates: Rates }) {
   const queryClient = useQueryClient();
   const [pickup, setPickup] = useState<Point | null>(places[0] ?? null);
   const [dropoff, setDropoff] = useState<Point | null>(null);
@@ -223,7 +224,10 @@ function BookingForm({ rates }: { rates: ReturnType<typeof Object> extends never
   }
 
   function useMyLocation() {
-    if (!("geolocation" in navigator)) return toast.error("এই ডিভাইসে লোকেশন সাপোর্ট নেই।");
+    if (!("geolocation" in navigator)) {
+      toast.error("এই ডিভাইসে লোকেশন সাপোর্ট নেই।");
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) =>
         setPoint({
