@@ -97,8 +97,7 @@ export function LiveTracking({ ride, me }: { ride: RideRow; me: string }) {
 
   const other = isDriver ? peers?.rider : peers?.driver;
   const otherLabel = isDriver ? "যাত্রীর" : "চালকের";
-  const age = other ? Math.max(0, Math.round((Date.now() - other.capturedAt) / 1000)) : null;
-  const live = age !== null && age <= 20;
+
 
   // Driver → pickup before the trip starts, driver → destination during the trip.
   const target = ride.status === "in_progress" ? ride.dropoff : ride.pickup;
