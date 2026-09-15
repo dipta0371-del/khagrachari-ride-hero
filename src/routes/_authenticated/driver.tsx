@@ -47,13 +47,22 @@ function DriverPage() {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
   const pos = useCurrentPosition();
+  // Keep the position out of the query key: GPS jitter must not reset the board.
+  const posRef = useRef(pos);
+  posRef.current = pos;
 
   const boardFn = useServerFn(getDriverBoard);
   const { data, isLoading } = useQuery({
-    queryKey: ["driver-board", pos?.lat ?? null, pos?.lng ?? null],
-    queryFn: () => boardFn({ data: pos ? { lat: pos.lat, lng: pos.lng } : {} }),
+    queryKey: ["driver-board"],
+    queryFn: () => {
+      const p = posRef.current;
+      return boardFn({ data: p ? { lat: p.lat, lng: p.lng } : {} });
+    },
     refetchInterval: 3500,
+    placeholderData: keepPreviousData,
   });
+
+
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["driver-board"] });
   const onlineFn = useServerFn(setDriverOnline);
