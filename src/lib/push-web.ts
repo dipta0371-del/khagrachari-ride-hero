@@ -9,9 +9,10 @@ const appId =
 const vapidKey =
   (import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_VAPID_KEY"] as string | undefined) ??
   "BEJWB7HcgS3s7-PNDrZHFfOE3J9P0fZ5fGRUCnJB9dy6JALWmV5xLy7yYJAgRxz8nkEj280vo_D5iuYsWUc8PcM";
-const apiKey = import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_WEB_API_KEY"] as
-  | string
-  | undefined;
+const apiKey =
+  (import.meta.env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_WEB_API_KEY"] as
+    | string
+    | undefined) ?? "AIzaSyCg1Eyfpl52jp018RJzfP69KAhz13Xp6y8";
 
 const messagingSenderId = appId.split(":")[1] ?? "";
 
