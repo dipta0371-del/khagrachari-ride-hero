@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { LiveTracking } from "@/components/LiveTracking";
 import { PartyCard } from "@/components/PartyCard";
+import { PlaceSearch } from "@/components/PlaceSearch";
+import { reverseGeocode } from "@/lib/places.functions";
 import { PushSetupCard } from "@/components/PushSetupCard";
 import { OffersPanel } from "@/components/OffersPanel";
 import { SafetyBar } from "@/components/SafetyBar";
@@ -234,7 +236,7 @@ function BookingForm({ rates }: { rates: Rates }) {
   const [target, setTarget] = useState<"pickup" | "dropoff">("dropoff");
   const [pricingMode, setPricingMode] = useState<"fixed" | "negotiated">("fixed");
   const [offeredFare, setOfferedFare] = useState("");
-  const [search, setSearch] = useState("");
+  const reverseFn = useServerFn(reverseGeocode);
   const idem = useRef(crypto.randomUUID());
 
   const placesFn = useServerFn(listSavedPlaces);
@@ -384,27 +386,24 @@ function BookingForm({ rates }: { rates: Rates }) {
                 <MapPinned className="mr-1 inline size-4" aria-hidden />
                 {target === "pickup" ? "পিকআপ" : "গন্তব্য"} হিসেবে বেছে নিন
               </p>
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="জায়গা খুঁজুন…"
-                aria-label="জায়গা খুঁজুন"
-                className="mb-2"
-              />
+              <div className="mb-3">
+                <PlaceSearch
+                  label={target === "pickup" ? "পিকআপ" : "গন্তব্য"}
+                  onPick={(p) => setPoint(p)}
+                />
+              </div>
               <div className="flex flex-wrap gap-2">
-                {places
-                  .filter((p) => !search.trim() || p.name.includes(search.trim()))
-                  .map((p) => (
-                    <Button
-                      key={p.name}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPoint(p)}
-                    >
-                      {p.name}
-                    </Button>
-                  ))}
+                {places.map((p) => (
+                  <Button
+                    key={p.name}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPoint(p)}
+                  >
+                    {p.name}
+                  </Button>
+                ))}
                 <Button type="button" size="sm" variant="secondary" onClick={useMyLocation}>
                   <Crosshair className="size-4" aria-hidden /> আমার অবস্থান
                 </Button>
@@ -440,13 +439,12 @@ function BookingForm({ rates }: { rates: Rates }) {
                 showZone
                 pins={pins}
                 follow={false}
-                onPick={(lat, lng) =>
-                  setPoint({
-                    name: target === "pickup" ? "মানচিত্রে বাছাই (পিকআপ)" : "মানচিত্রে বাছাই (গন্তব্য)",
-                    lat,
-                    lng,
-                  })
-                }
+                onPick={(lat, lng) => {
+                  setPoint({ name: "মানচিত্রে বেছে নেওয়া জায়গা", lat, lng });
+                  void reverseFn({ data: { lat, lng } })
+                    .then((r) => setPoint({ name: r.name, lat, lng }))
+                    .catch(() => {});
+                }}
                 className="h-64 w-full overflow-hidden rounded-xl border sm:h-80"
               />
             </div>
