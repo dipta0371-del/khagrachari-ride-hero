@@ -575,7 +575,13 @@ function BookingForm({ rates }: { rates: Rates }) {
                         }
                         placeholder={String(estimate.q.fare)}
                       />
-                      <p className="text-xs text-muted-foreground">
+                      <p
+                        className={
+                          offerInvalid
+                            ? "text-xs text-destructive"
+                            : "text-xs text-muted-foreground"
+                        }
+                      >
                         {`${money(offerBounds(estimate.q.fare).min)} থেকে ${money(offerBounds(estimate.q.fare).max)} এর মধ্যে দিন। চালকেরা পাল্টা ভাড়া প্রস্তাব করতে পারবেন, আপনি পছন্দেরটি বেছে নেবেন।`}
                       </p>
                     </div>
@@ -588,7 +594,7 @@ function BookingForm({ rates }: { rates: Rates }) {
                     size="lg"
                     className="w-full"
                     onClick={confirm}
-                    disabled={booking.isPending}
+                    disabled={booking.isPending || offerInvalid}
                   >
                     {booking.isPending
                       ? "পাঠানো হচ্ছে…"
