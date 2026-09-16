@@ -279,6 +279,13 @@ function BookingForm({ rates }: { rates: Rates }) {
     }
   }, [pickup, dropoff, vehicle, passengers, note, rates]);
 
+  const offerInvalid = (() => {
+    if (pricingMode !== "negotiated" || !estimate.q || !offeredFare) return false;
+    const n = Number(offeredFare);
+    const b = offerBounds(estimate.q.fare);
+    return !Number.isFinite(n) || n < b.min || n > b.max;
+  })();
+
   function setPoint(p: Point) {
     if (distanceKm(CENTER, p) > SERVICE_RADIUS_KM) {
       toast.error("এই জায়গা সেবার ১০ কিমি এলাকার বাইরে।");
