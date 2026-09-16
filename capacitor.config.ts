@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/core";
 
 const config: CapacitorConfig = {
-  appId: "com.chtgari.app",
+  appId: "com.amarkgc.chtgari",
   appName: "CHT GARI",
   webDir: "dist",
   server: {

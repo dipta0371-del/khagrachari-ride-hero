@@ -7,7 +7,8 @@
 Android-এ Firebase Cloud Messaging (FCM) চালু করতে `android/app/google-services.json` ফাইল লাগবে। এটি ছাড়া APK বানানো যাবে, কিন্তু Push Notification কাজ করবে না।
 
 **ফাইলটা কোথায় পাবে:**
-- Firebase Console → CHT GARI project → Project settings → General → "Your apps" → Android app (`com.chtgari.app`) → `google-services.json` download করো।
+- Firebase Console → CHT GARI project → Project settings → General → "Your apps" → Android app (`com.amarkgc.chtgari`) → `google-services.json` download করো।
+- ✅ ফাইলটি ইতিমধ্যে `android/app/google-services.json`-এ যোগ করা আছে — নতুন করে কিছু করতে হবে না।
 - যদি Lovable Cloud-এর Firebase connector থেকে নিজে access না পাও, তাহলে Lovable support বা project owner-কে বলে `google-services.json` নিয়ে আসো।
 
 **যোগ করার ধাপ:**

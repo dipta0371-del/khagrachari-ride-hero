@@ -1,4 +1,4 @@
-package com.chtgari.app;
+package com.amarkgc.chtgari;
 
 import com.getcapacitor.BridgeActivity;
 
