@@ -279,6 +279,13 @@ function BookingForm({ rates }: { rates: Rates }) {
     }
   }, [pickup, dropoff, vehicle, passengers, note, rates]);
 
+  const offerInvalid = (() => {
+    if (pricingMode !== "negotiated" || !estimate.q || !offeredFare) return false;
+    const n = Number(offeredFare);
+    const b = offerBounds(estimate.q.fare);
+    return !Number.isFinite(n) || n < b.min || n > b.max;
+  })();
+
   function setPoint(p: Point) {
     if (distanceKm(CENTER, p) > SERVICE_RADIUS_KM) {
       toast.error("এই জায়গা সেবার ১০ কিমি এলাকার বাইরে।");
@@ -575,7 +582,13 @@ function BookingForm({ rates }: { rates: Rates }) {
                         }
                         placeholder={String(estimate.q.fare)}
                       />
-                      <p className="text-xs text-muted-foreground">
+                      <p
+                        className={
+                          offerInvalid
+                            ? "text-xs text-destructive"
+                            : "text-xs text-muted-foreground"
+                        }
+                      >
                         {`${money(offerBounds(estimate.q.fare).min)} থেকে ${money(offerBounds(estimate.q.fare).max)} এর মধ্যে দিন। চালকেরা পাল্টা ভাড়া প্রস্তাব করতে পারবেন, আপনি পছন্দেরটি বেছে নেবেন।`}
                       </p>
                     </div>
@@ -588,7 +601,7 @@ function BookingForm({ rates }: { rates: Rates }) {
                     size="lg"
                     className="w-full"
                     onClick={confirm}
-                    disabled={booking.isPending}
+                    disabled={booking.isPending || offerInvalid}
                   >
                     {booking.isPending
                       ? "পাঠানো হচ্ছে…"
