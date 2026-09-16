@@ -23,7 +23,7 @@ import {
   cancelReasons,
   driverActionLabels,
   money,
-  offerBounds,
+  
 
   statusLabels,
   timeBn,
@@ -384,7 +384,7 @@ function QueueItem({
   onDecline: () => void;
   onRefresh: () => void;
 }) {
-  const bounds = offerBounds(ride.fare);
+  
   const [amount, setAmount] = useState(String(ride.myOffer?.amount ?? ride.fare));
   const offerFn = useServerFn(makeOffer);
   const offer = useMutation({
@@ -436,7 +436,7 @@ function QueueItem({
               onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 5))}
               inputMode="numeric"
               aria-label="আপনার প্রস্তাবিত ভাড়া"
-              placeholder={`${bounds.min}–${bounds.max}`}
+              placeholder="আপনার ভাড়া"
             />
             <Button
               variant="secondary"

@@ -10,7 +10,7 @@ import {
   bookingSchema,
   distanceKm,
   nextStatus,
-  offerBounds,
+  
 
   quote,
   ratesSchema,
@@ -299,14 +299,9 @@ export const bookRide = createServerFn({ method: "POST" })
     if (q.fare !== data.expectedFare) {
       fail(`ভাড়া হালনাগাদ হয়েছে — নতুন ভাড়া ৳${q.fare}। আবার নিশ্চিত করুন।`);
     }
-    const bounds = offerBounds(q.fare);
     let fare = q.fare;
-    if (data.pricingMode === "negotiated") {
-      const offered = data.offeredFare ?? q.fare;
-      if (offered < bounds.min || offered > bounds.max) {
-        fail(`প্রস্তাবিত ভাড়া ৳${bounds.min} থেকে ৳${bounds.max} এর মধ্যে দিন।`);
-      }
-      fare = offered;
+    if (data.pricingMode === "negotiated" && data.offeredFare) {
+      fare = data.offeredFare;
     }
 
 
@@ -899,10 +894,6 @@ export const makeOffer = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!ride) fail("রাইড পাওয়া যায়নি।");
     if (ride.status !== "requested") fail("এই অনুরোধটি আর খোলা নেই।");
-    const bounds = offerBounds(ride.fare);
-    if (data.amount < bounds.min || data.amount > bounds.max) {
-      fail(`ভাড়া ৳${bounds.min} থেকে ৳${bounds.max} এর মধ্যে প্রস্তাব করুন।`);
-    }
     const { error } = await db
       .from("ride_offers")
       .upsert(
