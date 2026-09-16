@@ -58,15 +58,37 @@ function ClickCatcher({ onPick }: { onPick: (lat: number, lng: number) => void }
   return null;
 }
 
+function MoveWatcher({ onMove }: { onMove: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    moveend(e) {
+      const c = e.target.getCenter();
+      onMove(c.lat, c.lng);
+    },
+  });
+  return null;
+}
+
+function FlyTo({ point }: { point: { lat: number; lng: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (point) map.setView([point.lat, point.lng], Math.max(map.getZoom(), 16));
+  }, [map, point]);
+  return null;
+}
+
 export default function LeafletMap({
   pins = [],
   onPick,
+  onMove,
+  flyTo = null,
   follow = true,
   showZone = false,
   className = "",
 }: {
   pins?: MapPin[] | undefined;
   onPick?: ((lat: number, lng: number) => void) | undefined;
+  onMove?: ((lat: number, lng: number) => void) | undefined;
+  flyTo?: { lat: number; lng: number } | null | undefined;
   follow?: boolean | undefined;
   showZone?: boolean | undefined;
   className?: string | undefined;
@@ -95,6 +117,8 @@ export default function LeafletMap({
           <Marker key={`${p.kind}-${i}`} position={[p.lat, p.lng]} icon={pinIcon(p.kind)} />
         ))}
         {onPick && <ClickCatcher onPick={onPick} />}
+        {onMove && <MoveWatcher onMove={onMove} />}
+        <FlyTo point={flyTo ?? null} />
         <Recenter pins={pins} follow={follow} />
       </MapContainer>
     </div>
