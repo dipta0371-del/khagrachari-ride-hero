@@ -38,7 +38,7 @@ import {
   bn,
   cancelReasons,
   distanceKm,
-  
+  etaMinutes,
   savedPlaceLabels,
   money,
   places,
@@ -595,24 +595,62 @@ function BookingForm({ rates }: { rates: Rates }) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label className="mb-2 block">যান</Label>
-              <div className="flex gap-2">
-                {(["bike", "tomtom"] as Vehicle[]).map((v) => (
-                  <Button
-                    key={v}
-                    type="button"
-                    variant={vehicle === v ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => {
-                      setVehicle(v);
-                      if (v === "bike") setPassengers(1);
-                    }}
-                  >
-                    {vehicleLabels[v]}
-                  </Button>
-                ))}
+              <Label className="mb-2 block">যান বেছে নিন</Label>
+              <div className="grid gap-2">
+                {(["bike", "tomtom"] as Vehicle[]).map((v) => {
+                  let fare: number | null = null;
+                  let eta: number | null = null;
+                  if (pickup && dropoff) {
+                    try {
+                      const q = quote(
+                        { pickup, dropoff, vehicle: v, passengers: v === "bike" ? 1 : passengers, note },
+                        rates,
+                      );
+                      fare = q.fare;
+                      eta = etaMinutes(q.distance, v);
+                    } catch {
+                      fare = null;
+                    }
+                  }
+                  const selected = vehicle === v;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setVehicle(v);
+                        if (v === "bike") setPassengers(1);
+                      }}
+                      aria-pressed={selected}
+                      className={`flex items-center gap-3 rounded-xl border p-3 text-start transition-colors ${
+                        selected
+                          ? "border-primary bg-secondary ring-1 ring-primary"
+                          : "hover:bg-secondary/60"
+                      }`}
+                    >
+                      <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-secondary" aria-hidden>
+                        {v === "bike" ? (
+                          <Bike className="size-6" />
+                        ) : (
+                          <span className="text-xl font-bold">ট</span>
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">{vehicleLabels[v]}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {v === "bike" ? "১ জন যাত্রী, দ্রুত" : "২–৪ জন যাত্রী"}
+                          {eta !== null && ` · প্রায় ${bn(eta)} মিনিট`}
+                        </span>
+                      </span>
+                      {fare !== null && (
+                        <span className="shrink-0 text-lg font-bold">{money(fare)}</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+
 
             <div>
               <Label className="mb-2 block">যাত্রী সংখ্যা</Label>
