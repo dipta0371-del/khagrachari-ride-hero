@@ -235,7 +235,7 @@ function BookingForm({ rates }: { rates: Rates }) {
   const [target, setTarget] = useState<"pickup" | "dropoff">("dropoff");
   const [pricingMode, setPricingMode] = useState<"fixed" | "negotiated">("fixed");
   const [offeredFare, setOfferedFare] = useState("");
-  const [search, setSearch] = useState("");
+  const reverseFn = useServerFn(reverseGeocode);
   const idem = useRef(crypto.randomUUID());
 
   const placesFn = useServerFn(listSavedPlaces);
@@ -438,13 +438,12 @@ function BookingForm({ rates }: { rates: Rates }) {
                 showZone
                 pins={pins}
                 follow={false}
-                onPick={(lat, lng) =>
-                  setPoint({
-                    name: target === "pickup" ? "মানচিত্রে বাছাই (পিকআপ)" : "মানচিত্রে বাছাই (গন্তব্য)",
-                    lat,
-                    lng,
-                  })
-                }
+                onPick={(lat, lng) => {
+                  setPoint({ name: "মানচিত্রে বেছে নেওয়া জায়গা", lat, lng });
+                  void reverseFn({ data: { lat, lng } })
+                    .then((r) => setPoint({ name: r.name, lat, lng }))
+                    .catch(() => {});
+                }}
                 className="h-64 w-full overflow-hidden rounded-xl border sm:h-80"
               />
             </div>
