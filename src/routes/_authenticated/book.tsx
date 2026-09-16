@@ -233,10 +233,16 @@ function BookingForm({ rates }: { rates: Rates }) {
   const [vehicle, setVehicle] = useState<Vehicle>("bike");
   const [passengers, setPassengers] = useState(1);
   const [note, setNote] = useState("");
-  const [target, setTarget] = useState<"pickup" | "dropoff">("dropoff");
+  const [activeField, setActiveField] = useState<"pickup" | "dropoff">("dropoff");
   const [pricingMode, setPricingMode] = useState<"fixed" | "negotiated">("fixed");
   const [offeredFare, setOfferedFare] = useState("");
+  const [mapMode, setMapMode] = useState(false);
+  const [pinPoint, setPinPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [pinName, setPinName] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [flyTo, setFlyTo] = useState<{ lat: number; lng: number } | null>(null);
   const reverseFn = useServerFn(reverseGeocode);
+  const revTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const idem = useRef(crypto.randomUUID());
 
   const placesFn = useServerFn(listSavedPlaces);
@@ -287,13 +293,67 @@ function BookingForm({ rates }: { rates: Rates }) {
     return !Number.isFinite(n) || n < 1;
   })();
 
-  function setPoint(p: Point) {
+  function setPointFor(field: "pickup" | "dropoff", p: Point) {
     if (distanceKm(CENTER, p) > SERVICE_RADIUS_KM) {
       toast.error("এই জায়গা সেবার ১০ কিমি এলাকার বাইরে।");
       return;
     }
-    if (target === "pickup") setPickup(p);
+    if (field === "pickup") setPickup(p);
     else setDropoff(p);
+  }
+
+  function setPoint(p: Point) {
+    setPointFor(activeField, p);
+  }
+
+  function swapPoints() {
+    const p = pickup;
+    setPickup(dropoff);
+    setDropoff(p);
+  }
+
+  function enterMapMode() {
+    const current = activeField === "pickup" ? pickup : dropoff;
+    const start = current ?? pickup ?? dropoff ?? CENTER;
+    setPinPoint({ lat: start.lat, lng: start.lng });
+    setPinName(current?.name ?? "");
+    setFlyTo({ lat: start.lat, lng: start.lng });
+    setMapMode(true);
+  }
+
+  function scheduleReverse(lat: number, lng: number) {
+    setPinLoading(true);
+    if (revTimer.current) clearTimeout(revTimer.current);
+    revTimer.current = setTimeout(() => {
+      reverseFn({ data: { lat, lng } })
+        .then((r) => setPinName(r.name))
+        .catch(() => setPinName("মানচিত্রে বেছে নেওয়া জায়গা"))
+        .finally(() => setPinLoading(false));
+    }, 400);
+  }
+
+  function confirmPin() {
+    if (!pinPoint) return;
+    setPointFor(activeField, {
+      name: pinName || "মানচিত্রে বেছে নেওয়া জায়গা",
+      lat: pinPoint.lat,
+      lng: pinPoint.lng,
+    });
+    setMapMode(false);
+    setPinPoint(null);
+    setPinName("");
+  }
+
+  function locateOnMap() {
+    if (!("geolocation" in navigator)) {
+      toast.error("এই ডিভাইসে লোকেশন সাপোর্ট নেই।");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setFlyTo({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => toast.error("লোকেশন পাওয়া যায়নি — ব্রাউজারে অনুমতি দিন।"),
+      { enableHighAccuracy: true, timeout: 12000 },
+    );
   }
 
   function useMyLocation() {
