@@ -28,7 +28,7 @@ import {
   bn,
   cancelReasons,
   distanceKm,
-  offerBounds,
+  
   savedPlaceLabels,
   money,
   places,
@@ -282,8 +282,7 @@ function BookingForm({ rates }: { rates: Rates }) {
   const offerInvalid = (() => {
     if (pricingMode !== "negotiated" || !estimate.q || !offeredFare) return false;
     const n = Number(offeredFare);
-    const b = offerBounds(estimate.q.fare);
-    return !Number.isFinite(n) || n < b.min || n > b.max;
+    return !Number.isFinite(n) || n < 1;
   })();
 
   function setPoint(p: Point) {
@@ -589,7 +588,7 @@ function BookingForm({ rates }: { rates: Rates }) {
                             : "text-xs text-muted-foreground"
                         }
                       >
-                        {`${money(offerBounds(estimate.q.fare).min)} থেকে ${money(offerBounds(estimate.q.fare).max)} এর মধ্যে দিন। চালকেরা পাল্টা ভাড়া প্রস্তাব করতে পারবেন, আপনি পছন্দেরটি বেছে নেবেন।`}
+                        আপনার ইচ্ছেমতো যেকোনো ভাড়া দিন। চালকেরা পাল্টা ভাড়া প্রস্তাব করতে পারবেন, আপনি পছন্দেরটি বেছে নেবেন।
                       </p>
                     </div>
                   )}
