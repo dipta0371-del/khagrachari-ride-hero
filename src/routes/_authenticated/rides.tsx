@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Star } from "lucide-react";
+import { FileText, Flag, Loader2, Star } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { bn, money, statusLabels, timeBn, vehicleLabels } from "@/lib/domain";
-import { getMyRides, rateRide, type RideRow } from "@/lib/rides.functions";
+import { bn, money, reportCategories, statusLabels, timeBn, vehicleLabels } from "@/lib/domain";
+import { getMyRides, rateRide, reportRide, type RideRow } from "@/lib/rides.functions";
 
 export const Route = createFileRoute("/_authenticated/rides")({
   head: () => ({
@@ -115,10 +115,16 @@ function RideCard({ ride, rated }: { ride: RideRow; rated: boolean }) {
         </div>
         {ride.driverId && (
           <p className="text-sm text-muted-foreground">
-            চালক: {vehicleLabels[ride.vehicle]}
+            চালক: {ride.driverName?.trim() || vehicleLabels[ride.vehicle]}
             {ride.driverPlate ? ` · ${ride.driverPlate}` : ""}
           </p>
         )}
+        {ride.cancelReason && (
+          <p className="text-sm text-muted-foreground">বাতিলের কারণ: {ride.cancelReason}</p>
+        )}
+
+        {ride.status === "completed" && <Receipt ride={ride} />}
+        {(ride.status === "completed" || ride.status === "cancelled") && <ReportBox ride={ride} />}
 
 
         {ride.status === "completed" &&
@@ -165,5 +171,114 @@ function RideCard({ ride, rated }: { ride: RideRow; rated: boolean }) {
           ))}
       </CardContent>
     </Card>
+  );
+}
+
+/** Fare breakdown receipt for a finished ride. */
+function Receipt({ ride }: { ride: RideRow }) {
+  const [open, setOpen] = useState(false);
+  const minutes =
+    ride.startedAt && ride.completedAt
+      ? Math.max(
+          1,
+          Math.round(
+            (new Date(ride.completedAt).getTime() - new Date(ride.startedAt).getTime()) / 60000,
+          ),
+        )
+      : null;
+
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <FileText className="size-4" aria-hidden /> রসিদ দেখুন
+      </Button>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-xl border p-3 text-sm">
+      <p className="font-semibold">রসিদ</p>
+      <Line label="দূরত্ব" value={`${bn(ride.distance)} কিমি`} />
+      {minutes != null && <Line label="সময়" value={`${bn(minutes)} মিনিট`} />}
+      <Line label="যান" value={vehicleLabels[ride.vehicle]} />
+      <Line label="চালক" value={ride.driverName?.trim() || (ride.driverPlate ?? "—")} />
+      <Line
+        label="ভাড়া নির্ধারণ"
+        value={ride.pricingMode === "negotiated" ? "দরদাম" : "নির্ধারিত হার"}
+      />
+      <Line label="পরিশোধ" value="নগদ" />
+      <div className="flex items-center justify-between border-t pt-2 font-semibold">
+        <span>মোট</span>
+        <span>{money(ride.fare)}</span>
+      </div>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+        বন্ধ করুন
+      </Button>
+    </div>
+  );
+}
+
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+/** Report a problem with a finished or cancelled ride. */
+function ReportBox({ ride }: { ride: RideRow }) {
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<string>(reportCategories[0] ?? "");
+  const [details, setDetails] = useState("");
+  const reportFn = useServerFn(reportRide);
+  const submit = useMutation({
+    mutationFn: () => reportFn({ data: { rideId: ride.id, category, details } }),
+    onSuccess: () => {
+      toast.success("রিপোর্ট পাঠানো হয়েছে — আমরা দেখছি");
+      setOpen(false);
+      setDetails("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <Flag className="size-4" aria-hidden /> সমস্যা জানান
+      </Button>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border p-3">
+      <select
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        aria-label="সমস্যার ধরন"
+        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+      >
+        {reportCategories.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <Textarea
+        value={details}
+        maxLength={500}
+        onChange={(e) => setDetails(e.target.value)}
+        placeholder="কী হয়েছিল, সংক্ষেপে লিখুন (ঐচ্ছিক)"
+      />
+      <div className="flex gap-2">
+        <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+          রিপোর্ট পাঠান
+        </Button>
+        <Button variant="outline" onClick={() => setOpen(false)}>
+          বাতিল
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -17,6 +17,7 @@ import { Route as AuthenticatedBookRouteImport } from './routes/_authenticated/b
 import { Route as AuthenticatedDriverRouteImport } from './routes/_authenticated/driver'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedRidesRouteImport } from './routes/_authenticated/rides'
+import { Route as TripTokenRouteImport } from './routes/trip.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -57,6 +58,11 @@ const AuthenticatedRidesRoute = AuthenticatedRidesRouteImport.update({
   path: '/rides',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const TripTokenRoute = TripTokenRouteImport.update({
+  id: '/trip/$token',
+  path: '/trip/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/driver': typeof AuthenticatedDriverRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/rides': typeof AuthenticatedRidesRoute
+  '/trip/$token': typeof TripTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/driver': typeof AuthenticatedDriverRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/rides': typeof AuthenticatedRidesRoute
+  '/trip/$token': typeof TripTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,13 +94,29 @@ export interface FileRoutesById {
   '/_authenticated/driver': typeof AuthenticatedDriverRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/rides': typeof AuthenticatedRidesRoute
+  '/trip/$token': typeof TripTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/admin' | '/book' | '/driver' | '/profile' | '/rides'
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/book'
+    | '/driver'
+    | '/profile'
+    | '/rides'
+    | '/trip/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/admin' | '/book' | '/driver' | '/profile' | '/rides'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/book'
+    | '/driver'
+    | '/profile'
+    | '/rides'
+    | '/trip/$token'
   id:
     | '__root__'
     | '/'
@@ -103,12 +127,14 @@ export interface FileRouteTypes {
     | '/_authenticated/driver'
     | '/_authenticated/profile'
     | '/_authenticated/rides'
+    | '/trip/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  TripTokenRoute: typeof TripTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -169,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRidesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/trip/$token': {
+      id: '/trip/$token'
+      path: '/trip/$token'
+      fullPath: '/trip/$token'
+      preLoaderRoute: typeof TripTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -195,6 +228,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  TripTokenRoute: TripTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

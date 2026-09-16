@@ -9,6 +9,8 @@ import { AppShell } from "@/components/AppShell";
 import { LiveTracking } from "@/components/LiveTracking";
 import { PartyCard } from "@/components/PartyCard";
 import { PushSetupCard } from "@/components/PushSetupCard";
+import { OffersPanel } from "@/components/OffersPanel";
+import { SafetyBar } from "@/components/SafetyBar";
 import { RideMap, type MapPin as Pin } from "@/components/map";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,10 @@ import {
   SERVICE_RADIUS_KM,
   activeStatuses,
   bn,
+  cancelReasons,
   distanceKm,
+  offerBounds,
+  savedPlaceLabels,
   money,
   places,
   quote,
@@ -34,7 +39,15 @@ import {
   type Rates,
   type Vehicle,
 } from "@/lib/domain";
-import { bookRide, cancelRide, getMyRides, type RideRow } from "@/lib/rides.functions";
+import {
+  bookRide,
+  cancelRide,
+  driverAvailability,
+  getMyRides,
+  listSavedPlaces,
+  savePlace,
+  type RideRow,
+} from "@/lib/rides.functions";
 
 export const Route = createFileRoute("/_authenticated/book")({
   head: () => ({
@@ -79,8 +92,9 @@ function BookPage() {
 function ActiveRide({ ride, meId }: { ride: RideRow; meId: string }) {
   const queryClient = useQueryClient();
   const cancelFn = useServerFn(cancelRide);
+  const [reason, setReason] = useState<string>(cancelReasons[0] ?? "");
   const cancelMutation = useMutation({
-    mutationFn: () => cancelFn({ data: { rideId: ride.id } }),
+    mutationFn: () => cancelFn({ data: { rideId: ride.id, reason } }),
     onSuccess: () => {
       toast.success("রাইড বাতিল হয়েছে");
       void queryClient.invalidateQueries({ queryKey: ["my-rides"] });
@@ -131,36 +145,68 @@ function ActiveRide({ ride, meId }: { ride: RideRow; meId: string }) {
           </div>
 
           {ride.driverId ? (
-            <PartyCard
-              kind="driver"
-              vehicle={ride.vehicle}
-              plate={ride.driverPlate ?? null}
-              phone={ride.driverPhone ?? null}
-            />
+            <>
+              <PartyCard
+                kind="driver"
+                name={ride.driverName ?? null}
+                rating={ride.driverRating ?? null}
+                vehicle={ride.vehicle}
+                plate={ride.driverPlate ?? null}
+                phone={ride.driverPhone ?? null}
+              />
+              {ride.pickupCode && ride.status !== "in_progress" && (
+                <div className="rounded-xl border border-dashed p-4 text-center">
+                  <p className="text-xs text-muted-foreground">পিকআপ কোড</p>
+                  <p className="font-display text-3xl font-bold tracking-[0.4em]">
+                    {bn(Number(ride.pickupCode)).padStart(4, "০")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    যাত্রা শুরুর আগে এই কোডটি চালককে বলুন। অন্য কাউকে দেবেন না।
+                  </p>
+                </div>
+              )}
+              <SafetyBar shareToken={ride.shareToken} />
+            </>
+          ) : ride.pricingMode === "negotiated" ? (
+            <OffersPanel ride={ride} />
           ) : (
             <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
               কাছের অনুমোদিত চালকদের কাছে আপনার অনুরোধ পৌঁছেছে। কেউ গ্রহণ করলেই এখানে দেখাবে।
             </p>
           )}
 
-
           <LiveTracking ride={ride} me={meId} />
 
           {ride.status !== "in_progress" && (
-            <Button
-              variant="outline"
-              className="w-full text-destructive"
-              onClick={() => cancelMutation.mutate()}
-              disabled={cancelMutation.isPending}
-            >
-              <X className="size-4" aria-hidden /> রাইড বাতিল করুন
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                aria-label="বাতিলের কারণ"
+                className="rounded-md border bg-background px-3 py-2 text-sm sm:flex-1"
+              >
+                {cancelReasons.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                className="text-destructive"
+                onClick={() => cancelMutation.mutate()}
+                disabled={cancelMutation.isPending}
+              >
+                <X className="size-4" aria-hidden /> রাইড বাতিল করুন
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
 
 function Leg({ label, value, tone }: { label: string; value: string; tone: "primary" | "accent" }) {
   return (
@@ -186,7 +232,32 @@ function BookingForm({ rates }: { rates: Rates }) {
   const [passengers, setPassengers] = useState(1);
   const [note, setNote] = useState("");
   const [target, setTarget] = useState<"pickup" | "dropoff">("dropoff");
+  const [pricingMode, setPricingMode] = useState<"fixed" | "negotiated">("fixed");
+  const [offeredFare, setOfferedFare] = useState("");
+  const [search, setSearch] = useState("");
   const idem = useRef(crypto.randomUUID());
+
+  const placesFn = useServerFn(listSavedPlaces);
+  const { data: saved } = useQuery({ queryKey: ["saved-places"], queryFn: () => placesFn() });
+  const saveFn = useServerFn(savePlace);
+  const savePlaceMutation = useMutation({
+    mutationFn: (payload: { label: string; name: string; lat: number; lng: number }) =>
+      saveFn({ data: payload }),
+    onSuccess: () => {
+      toast.success("জায়গাটি সংরক্ষণ হয়েছে");
+      void queryClient.invalidateQueries({ queryKey: ["saved-places"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const availFn = useServerFn(driverAvailability);
+  const { data: avail } = useQuery({
+    queryKey: ["driver-availability"],
+    queryFn: () => availFn(),
+    refetchInterval: 15000,
+  });
+
+
 
   const bookFn = useServerFn(bookRide);
   const booking = useMutation({
@@ -248,8 +319,13 @@ function BookingForm({ rates }: { rates: Rates }) {
       note,
       idempotencyKey: idem.current,
       expectedFare: estimate.q.fare,
+      pricingMode,
+      ...(pricingMode === "negotiated" && offeredFare
+        ? { offeredFare: Number(offeredFare) }
+        : {}),
     });
   }
+
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
@@ -278,28 +354,77 @@ function BookingForm({ rates }: { rates: Rates }) {
               </button>
             </div>
 
+            {(saved?.places.length ?? 0) > 0 && (
+              <div>
+                <p className="mb-2 text-sm text-muted-foreground">সংরক্ষিত জায়গা</p>
+                <div className="flex flex-wrap gap-2">
+                  {(saved?.places ?? []).map((p) => (
+                    <Button
+                      key={p.id}
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setPoint({ name: p.name, lat: p.lat, lng: p.lng })}
+                    >
+                      {p.label}: {p.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <p className="mb-2 text-sm text-muted-foreground">
                 <MapPinned className="mr-1 inline size-4" aria-hidden />
                 {target === "pickup" ? "পিকআপ" : "গন্তব্য"} হিসেবে বেছে নিন
               </p>
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="জায়গা খুঁজুন…"
+                aria-label="জায়গা খুঁজুন"
+                className="mb-2"
+              />
               <div className="flex flex-wrap gap-2">
-                {places.map((p) => (
-                  <Button
-                    key={p.name}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPoint(p)}
-                  >
-                    {p.name}
-                  </Button>
-                ))}
+                {places
+                  .filter((p) => !search.trim() || p.name.includes(search.trim()))
+                  .map((p) => (
+                    <Button
+                      key={p.name}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPoint(p)}
+                    >
+                      {p.name}
+                    </Button>
+                  ))}
                 <Button type="button" size="sm" variant="secondary" onClick={useMyLocation}>
                   <Crosshair className="size-4" aria-hidden /> আমার অবস্থান
                 </Button>
               </div>
+              {(target === "pickup" ? pickup : dropoff) && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">এই জায়গাটি সংরক্ষণ করুন:</span>
+                  {savedPlaceLabels.map((label) => (
+                    <Button
+                      key={label}
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const p = target === "pickup" ? pickup : dropoff;
+                        if (!p) return;
+                        savePlaceMutation.mutate({ label, name: p.name, lat: p.lat, lng: p.lng });
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
+
 
             <div>
               <p className="mb-2 text-sm text-muted-foreground">
@@ -388,6 +513,13 @@ function BookingForm({ rates }: { rates: Rates }) {
             <CardTitle className="font-display text-xl">ভাড়ার হিসাব</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {avail && (
+              <p className="rounded-lg bg-secondary p-3 text-sm">
+                {avail[vehicle] > 0
+                  ? `এখন ${bn(avail[vehicle])} জন ${vehicleLabels[vehicle]} চালক অনলাইনে আছেন।`
+                  : `এখন কোনো ${vehicleLabels[vehicle]} চালক অনলাইনে নেই — অনুরোধ পাঠালে কেউ অনলাইনে এলে দেখতে পাবেন।`}
+              </p>
+            )}
             {!pickup || !dropoff ? (
               <p className="text-sm text-muted-foreground">
                 পিকআপ ও গন্তব্য দুটোই বেছে নিলে পুরো ভাড়ার হিসাব এখানে দেখাবে।
@@ -413,9 +545,42 @@ function BookingForm({ rates }: { rates: Rates }) {
                     <Row label="সর্বনিম্ন ভাড়া প্রযোজ্য" value={money(estimate.q.minimum)} />
                   )}
                   <div className="flex items-center justify-between border-t pt-3">
-                    <span className="font-semibold">মোট (নগদে)</span>
+                    <span className="font-semibold">প্রস্তাবিত ভাড়া (নগদে)</span>
                     <span className="text-2xl font-bold">{money(estimate.q.fare)}</span>
                   </div>
+
+                  <div className="flex gap-2">
+                    {(["fixed", "negotiated"] as const).map((m) => (
+                      <Button
+                        key={m}
+                        type="button"
+                        variant={pricingMode === m ? "default" : "outline"}
+                        className="flex-1"
+                        onClick={() => setPricingMode(m)}
+                      >
+                        {m === "fixed" ? "নির্ধারিত ভাড়া" : "দরদাম"}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {pricingMode === "negotiated" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="offered">আপনার ভাড়া</Label>
+                      <Input
+                        id="offered"
+                        value={offeredFare}
+                        inputMode="numeric"
+                        onChange={(e) =>
+                          setOfferedFare(e.target.value.replace(/\D/g, "").slice(0, 5))
+                        }
+                        placeholder={String(estimate.q.fare)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {`${money(offerBounds(estimate.q.fare).min)} থেকে ${money(offerBounds(estimate.q.fare).max)} এর মধ্যে দিন। চালকেরা পাল্টা ভাড়া প্রস্তাব করতে পারবেন, আপনি পছন্দেরটি বেছে নেবেন।`}
+                      </p>
+                    </div>
+                  )}
+
                   <p className="text-xs text-muted-foreground">
                     ভাড়া আনুমানিক — রাস্তার প্রকৃত দূরত্বের ভিত্তিতে সামান্য ভিন্ন হতে পারে।
                   </p>
@@ -425,12 +590,15 @@ function BookingForm({ rates }: { rates: Rates }) {
                     onClick={confirm}
                     disabled={booking.isPending}
                   >
-                    {booking.isPending ? "পাঠানো হচ্ছে…" : `${money(estimate.q.fare)} — রাইড নিশ্চিত করুন`}
+                    {booking.isPending
+                      ? "পাঠানো হচ্ছে…"
+                      : `${money(pricingMode === "negotiated" && offeredFare ? Number(offeredFare) : estimate.q.fare)} — রাইড নিশ্চিত করুন`}
                   </Button>
                 </>
               )
             )}
           </CardContent>
+
         </Card>
       </div>
     </div>
