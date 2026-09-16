@@ -364,14 +364,14 @@ function BookingForm({ rates }: { rates: Rates }) {
     );
   }
 
-  function useMyLocation() {
+  function useMyLocation(field: "pickup" | "dropoff" = activeField) {
     if (!("geolocation" in navigator)) {
       toast.error("এই ডিভাইসে লোকেশন সাপোর্ট নেই।");
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) =>
-        setPoint({
+        setPointFor(field, {
           name: "আমার বর্তমান অবস্থান",
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
@@ -435,7 +435,7 @@ function BookingForm({ rates }: { rates: Rates }) {
                   variant="ghost"
                   onClick={() => {
                     setActiveField("pickup");
-                    useMyLocation();
+                    useMyLocation("pickup");
                   }}
                   aria-label="আমার অবস্থান পিকআপ হিসেবে"
                   title="আমার অবস্থান"
