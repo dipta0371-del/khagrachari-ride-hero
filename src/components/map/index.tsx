@@ -21,6 +21,8 @@ function MapSkeleton({ className }: { className?: string | undefined }) {
 export interface RideMapProps {
   pins?: MapPin[] | undefined;
   onPick?: ((lat: number, lng: number) => void) | undefined;
+  onMove?: ((lat: number, lng: number) => void) | undefined;
+  flyTo?: { lat: number; lng: number } | null | undefined;
   follow?: boolean | undefined;
   showZone?: boolean | undefined;
   className?: string | undefined;

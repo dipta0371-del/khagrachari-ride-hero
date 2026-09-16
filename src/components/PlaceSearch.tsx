@@ -17,9 +17,15 @@ interface Suggestion {
 export function PlaceSearch({
   label,
   onPick,
+  autoFocus = false,
+  presetName = null,
+  onFocusInput,
 }: {
   label: string;
   onPick: (p: Point) => void;
+  autoFocus?: boolean | undefined;
+  presetName?: string | null | undefined;
+  onFocusInput?: (() => void) | undefined;
 }) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<Suggestion[]>([]);
@@ -32,10 +38,21 @@ export function PlaceSearch({
   // One session token per typing session keeps Google's billing/session rules happy.
   const token = useRef(crypto.randomUUID());
   const reqId = useRef(0);
+  const lastPreset = useRef<string | null>(null);
+
+  // Reflect a place chosen elsewhere (map, chips, swap) without triggering a fetch.
+  useEffect(() => {
+    if (presetName && presetName !== lastPreset.current) {
+      lastPreset.current = presetName;
+      setQuery(presetName);
+      setItems([]);
+      setOpen(false);
+    }
+  }, [presetName]);
 
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
+    if (q.length < 2 || q === lastPreset.current) {
       setItems([]);
       setLoading(false);
       return;
@@ -66,8 +83,10 @@ export function PlaceSearch({
         data: { placeId: s.placeId, sessionToken: token.current },
       });
       token.current = crypto.randomUUID();
-      onPick({ name: place.name || s.main, lat: place.lat, lng: place.lng });
-      setQuery("");
+      const name = place.name || s.main;
+      lastPreset.current = name;
+      onPick({ name, lat: place.lat, lng: place.lng });
+      setQuery(name);
       setItems([]);
     } catch (e) {
       toast.error((e as Error).message);
@@ -83,11 +102,18 @@ export function PlaceSearch({
         />
         <Input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => items.length > 0 && setOpen(true)}
+          autoFocus={autoFocus}
+          onChange={(e) => {
+            lastPreset.current = null;
+            setQuery(e.target.value);
+          }}
+          onFocus={() => {
+            onFocusInput?.();
+            if (items.length > 0) setOpen(true);
+          }}
           placeholder={`${label} খুঁজুন — বাজার, স্কুল, হোটেল…`}
           aria-label={`${label} খুঁজুন`}
-          className="ps-9"
+          className="border-0 bg-transparent ps-9 shadow-none focus-visible:ring-0"
         />
         {loading && (
           <Loader2
