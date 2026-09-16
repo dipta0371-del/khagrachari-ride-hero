@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { LiveTracking } from "@/components/LiveTracking";
 import { PartyCard } from "@/components/PartyCard";
+import { PushSetupCard } from "@/components/PushSetupCard";
 import { RideMap, type MapPin as Pin } from "@/components/map";
 
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ function ActiveRide({ ride, meId }: { ride: RideRow; meId: string }) {
 
   return (
     <div className="space-y-5">
+      <PushSetupCard />
       <Card className="shadow-ridge">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
