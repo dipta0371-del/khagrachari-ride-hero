@@ -1,69 +1,82 @@
-# CHT GARI — APK handoff (Emergent.sh vs existing Capacitor)
+# CHT GARI — Emergent.sh Android-only APK: চূড়ান্ত prompt
 
-## What Emergent.sh actually is
-Emergent.sh-এর Mobile Agent [2](https://help.emergent.sh/mobile-app-development) নতুন অ্যাপ prompt থেকে Expo/React Native-এ বানায়। এছাড়া "Web ↔ Mobile" ফিচার [3](https://help.emergent.sh/web-mobile) আছে — সেটা existing web অ্যাপের frontend আবার build করে, backend/database/login একই রাখে।
+## গুরুত্বপূর্ণ তথ্য (যাচাই করা)
+- Emergent-এর Mobile Agent শুধু **Expo/React Native** stack-এ কাজ করে [2](https://help.emergent.sh/mobile-app-development) — paid plan ($20+/month) লাগে, free tier-এ নেই।
+- আমাদের অ্যাপ TanStack Start + Capacitor। Emergent সরাসরি এই Capacitor প্রজেক্ট build করবে না — সে নতুন করে Expo-তে বানাবে।
+- আপনার repo: `https://github.com/dipta0371-del/khagrachari-ride-hero.git`
+- Package name: `com.amarkgc.chtgari`, Firebase project: `cht-gari`
+- Live web app: `https://chtgari.com` (backend Supabase)
 
-তবে আমাদের অ্যাপ Lovable-এ (TanStack Start + Capacitor Android wrapper)। Emergent-এর সরাসরি GitHub repo থেকে Capacitor APK বানানোর ফিচার নেই। তাই দুটি রাস্তা আছে।
+## যা Emergent-কে দিতে হবে
+1. GitHub repo লিংক (উপরে) — repo public না হলে public করো বা Emergent-কে access দাও।
+2. Firebase `google-services.json` (Firebase Console → cht-gari → Android app `com.amarkgc.chtgari` → download) — attach করো।
+3. Supabase URL + anon key (যদি একই backend ব্যবহার করাতে চাও)।
+4. অ্যাপ আইকন / ব্র্যান্ড কালার (`#2F5D3C`)।
 
-## Recommended path (faster, keeps your Lovable app)
-Use the existing `android/` folder and build locally or via GitHub Actions — already configured.
+---
 
-### Step 1 — Pre-requisites
-- GitHub sync চালু করো (Lovable → Plus menu → GitHub → Connect project)।
-- Firebase Console → CHT GARI (`cht-gari`) → Android app (`com.amarkgc.chtgari`) → `google-services.json` ডাউনলোড করো।
+## চূড়ান্ত Prompt (হুবহু copy-paste করো)
 
-### Step 2 — Build options
-**A. Android Studio দিয়ে:**
-```bash
-npm install
-npx cap sync
-npx cap open android
-# then Build → Build Bundle(s) / APK(s) → Build APK(s)
-```
-Output: `android/app/build/outputs/apk/debug/app-debug.apk`
-
-**B. GitHub Actions দিয়ে:**
-- GitHub secret `GOOGLE_SERVICES_JSON` = base64 of `google-services.json`
-- Run `.github/workflows/build-apk.yml` manually
-- Download artifact `cht-gari-debug-apk`
-
-## If you still want Emergent.sh
-You can ask Emergent's Mobile Agent to build a **new** Expo/React Native Android app by describing CHT GARI in detail. It won't reuse your existing Lovable code directly, but it can replicate the features.
-
-### Exact prompt to paste to Emergent.sh Mobile Agent
 ```text
-Build an Android (and iOS) ride-sharing app called "CHT GARI" using Expo/React Native.
+Build a NATIVE ANDROID-ONLY app for my existing ride-sharing web service "CHT GARI". No iOS needed.
 
-Overview:
-- Ride-sharing app for Khagrachari hill district, Bangladesh
-- Two user roles: Rider and Driver
-- Cash-only rides
-- Bengali UI with Latin-script branding "CHT GARI"
+SOURCE CODE (read this repo first to understand all features, screens, business rules, fare logic, Bengali text, and database schema):
+https://github.com/dipta0371-del/khagrachari-ride-hero.git
 
-Core features:
-1. Auth: email/password signup/login for both riders and drivers. Admin role that approves drivers.
-2. Rider flow: pick pickup and destination with Google Places autocomplete (Khagrachari bias), see fare estimate for bike/totom (two vehicle types), confirm booking, live-track driver on map, cancel ride, rate driver after trip.
-3. Driver flow: register vehicle, go online/offline, receive ride requests, accept, mark arrived/started/completed, see earnings.
-4. Live location: upload driver location every 5 seconds when online/in a ride; rider sees driver marker moving on map with ETA.
-5. Push notifications: Firebase Cloud Messaging for new ride requests, driver accepted, ride started/completed.
-6. Map: OpenStreetMap or Google Maps for markers, route lines, and pin selection.
-7. Admin panel: approve/reject drivers, edit fare rates per vehicle type, view statistics.
+LIVE WEB APP (for reference): https://chtgari.com
 
-Backend: keep shared backend/database/login with the existing web version. The web app is live at https://chtgari.com and backend uses Supabase (auth + Postgres + realtime).
+WHAT IT IS:
+A ride-sharing app for Khagrachari hill district, Bangladesh. Bengali language UI. Cash-only payments. Two vehicle types: bike and totom (CNG-like local vehicle). Three roles: Rider, Driver, Admin.
 
-Deliver:
-- Expo project source
-- APK for Android
-- Instructions to run locally and test push notifications
-- List of env variables needed (Firebase config, Supabase URL/key, Google Maps key)
+TECHNICAL REQUIREMENTS:
+- Android only (Expo/React Native is fine)
+- MUST reuse the SAME backend: Supabase (auth + Postgres + realtime). Do NOT create a new backend or database. I will provide the Supabase URL and anon key. Users who signed up on web must be able to log in on the Android app.
+- Android package name MUST be: com.amarkgc.chtgari
+- Firebase Cloud Messaging for push notifications (Firebase project: cht-gari). I will attach google-services.json.
+- Google Places API for location search with Khagrachari bias; OpenStreetMap or Google Maps for the map display.
+
+FEATURES TO REPLICATE (all already exist in the repo — match them exactly):
+1. Auth: email/password signup and login for riders and drivers. Admin role approves drivers before they can go online.
+2. Rider flow (Uber-style booking screen):
+   - Two stacked search rows: pickup (green dot) and destination (red square), each with Google Places autocomplete in Bengali and English
+   - Swap button between the two rows
+   - Map pin selection: full map with a center-fixed pin the user drags, reverse-geocoded address shown below, "confirm this location" button
+   - "My location" GPS button
+   - Saved places and popular place chips
+   - Vehicle cards (bike / totom) showing fare and ETA
+   - Negotiable fare: rider can enter ANY positive amount, no min/max limit
+   - 10 km service radius validation from Khagrachari center
+3. Driver flow: vehicle registration, online/offline toggle, incoming ride requests, counter-offer any amount, accept, mark arrived → started → completed, earnings summary.
+4. Live tracking: driver uploads GPS location every 5 seconds while online or in a ride. Rider sees the driver marker moving on the map with live ETA. Ride status polls every 3.5 seconds.
+5. BACKGROUND LOCATION (this is the main reason I need a native app): driver location must keep uploading even when the phone screen is locked or the app is in the background. Use a foreground service with a persistent notification.
+6. Push notifications via FCM: new ride request (to nearby online drivers), driver accepted, driver arrived, ride started, ride completed, ride cancelled.
+7. Ratings: rider rates driver after ride completion.
+8. Cancellation: both sides can cancel before the ride starts.
+9. Admin screens: approve/reject drivers, edit fare rates per vehicle type, view statistics.
+10. Access control: riders cannot see driver screens and vice versa; a user with an active ride cannot book another one.
+
+UI/UX:
+- All user-facing text in Bengali (copy the exact Bengali strings from the repo)
+- Bengali number and date formatting
+- Brand color #2F5D3C, app name "CHT GARI" in Latin script
+- Mobile-first layouts matching the existing web screens
+
+DELIVERABLES:
+1. A working debug APK I can install on a real Android phone
+2. The full source code
+3. A list of all environment variables / config I need to set
+4. Step-by-step instructions to install the APK and test push notifications and background location on a real device
+
+IMPORTANT: Read the GitHub repo thoroughly before writing code. The fare calculation, ride state machine, Bengali strings, and Supabase table schema are all already defined there — match them, don't reinvent them.
 ```
 
-## What to attach/send if using Emergent
-- Screenshot/screen recording of your current web app ( rider booking, driver screen, live tracking )
-- Brand assets: app icon, splash image, brand color `#2F5D3C` or current primary color
-- Firebase `google-services.json` for Android push (after Firebase project setup)
-- Supabase project URL and anon key (if you want Emergent to connect to same backend)
-- Google Maps API key (if using Google Maps)
+---
 
-## Honest caveat
-Emergent-এ rebuilding করলে আপনার Lovable-এ করা সব customization, fare logic, Bengali date format, approval flow, etc. আবার নতুন করে verify করতে হবে। Capacitor path-এ সেই কাজগুলো already done।
+## Prompt দেওয়ার পর Emergent যা চাইবে
+- Supabase URL + anon key → Lovable-এ Cloud settings থেকে পাবে
+- `google-services.json` → attach করো
+- Google Maps API key → তোমার Google Cloud Console থেকে
+- অ্যাপ আইকন → নিজের লোগো ফাইল
+
+## বিকল্প (দ্রুততর)
+তোমার repo-তে ইতিমধ্যে Capacitor Android wrapper আছে। Android Studio বা GitHub Actions দিয়ে সরাসরি APK বানানো যাবে — Emergent-এ নতুন করে rebuild না করেই। তবে background location আর native push-এর জন্য Emergent-এর native rebuild বেশি ভালো ফল দেবে।
