@@ -75,15 +75,19 @@ IMPORTANT: Read the GitHub repo thoroughly before writing code. The fare calcula
 
 ---
 
-## কোথায় থেকে Supabase URL আর Anon Key পাবেন
-Lovable editor-এ:
-1. **Cloud** বা **Backend** প্যানেল খুলুন
-2. **Project settings / Environment variables / Supabase** সেকশনে দেখুন
-3. দুটো value কপি করুন:
-   - `SUPABASE_URL` (যেমন `https://othzgksynaxdodfokegp.supabase.co` — নিজের প্রজেক্টেরটা হবে)
-   - `SUPABASE_ANON_KEY` বা `SUPABASE_PUBLISHABLE_KEY`
+## আপনার আসল Supabase credentials (এগুলোই দেবেন)
+এই দুটো public/publishable key — mobile app-এ দেওয়া নিরাপদ (RLS দিয়ে সুরক্ষিত):
 
-এই দুটো শুধু mobile app frontend-কে backend-এ connect করতে লাগে; user login, database read/write RLS-এর মাধ্যমে secure।
+- **Supabase URL:** `https://othzgksynaxdodfokegp.supabase.co`
+- **Supabase Anon/Publishable Key:** `sb_publishable__3QS9BYU2ehHnWtEJeIlqg_ROXIuJe-`
+
+Emergent-কে দেওয়ার সময় লিখুন:
+```text
+Supabase URL: https://othzgksynaxdodfokegp.supabase.co
+Supabase anon key: sb_publishable__3QS9BYU2ehHnWtEJeIlqg_ROXIuJe-
+```
+
+**Service role key কখনো কাউকে দেবেন না** — সেটা শুধু server-side। এখানে সেটার দরকারই নেই।
 
 ## Prompt দেওয়ার পর Emergent যা চাইবে
 - Supabase URL + anon key → উপরের স্টেপ থেকে
