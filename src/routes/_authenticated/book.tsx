@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Crosshair, Loader2, MapPinned, X } from "lucide-react";
+import {
+  ArrowUpDown,
+  Bike,
+  Crosshair,
+  Loader2,
+  MapPin as MapPinIcon,
+  MapPinned,
+  X,
+} from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -403,56 +411,82 @@ function BookingForm({ rates }: { rates: Rates }) {
             <CardTitle className="font-display text-xl">কোথায় যাবেন?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setTarget("pickup")}
-                className={`rounded-xl border p-3 text-start transition-colors ${target === "pickup" ? "border-primary bg-secondary" : "hover:bg-secondary/60"}`}
+            {/* Uber-স্টাইল দুটি সারি: পিকআপ ও গন্তব্য */}
+            <div className="relative">
+              <div
+                className="absolute bottom-10 start-[27px] top-10 w-px bg-border"
+                aria-hidden
+              />
+              <div
+                className={`relative flex items-center gap-3 rounded-t-xl border p-2 ps-4 transition-colors ${activeField === "pickup" ? "border-primary bg-secondary/50" : ""}`}
               >
-                <span className="block text-xs text-muted-foreground">পিকআপ</span>
-                <span className="block font-medium">{pickup?.name ?? "বেছে নিন"}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTarget("dropoff")}
-                className={`rounded-xl border p-3 text-start transition-colors ${target === "dropoff" ? "border-primary bg-secondary" : "hover:bg-secondary/60"}`}
+                <span className="size-3 shrink-0 rounded-full bg-primary" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <PlaceSearch
+                    label="পিকআপ"
+                    presetName={pickup?.name ?? null}
+                    onPick={(p) => setPointFor("pickup", p)}
+                    onFocusInput={() => setActiveField("pickup")}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    setActiveField("pickup");
+                    useMyLocation();
+                  }}
+                  aria-label="আমার অবস্থান পিকআপ হিসেবে"
+                  title="আমার অবস্থান"
+                >
+                  <Crosshair className="size-4" aria-hidden />
+                </Button>
+              </div>
+              <div
+                className={`relative flex items-center gap-3 rounded-b-xl border border-t-0 p-2 ps-4 transition-colors ${activeField === "dropoff" ? "border-primary bg-secondary/50" : ""}`}
               >
-                <span className="block text-xs text-muted-foreground">গন্তব্য</span>
-                <span className="block font-medium">{dropoff?.name ?? "বেছে নিন"}</span>
-              </button>
-            </div>
-
-            {(saved?.places.length ?? 0) > 0 && (
-              <div>
-                <p className="mb-2 text-sm text-muted-foreground">সংরক্ষিত জায়গা</p>
-                <div className="flex flex-wrap gap-2">
-                  {(saved?.places ?? []).map((p) => (
-                    <Button
-                      key={p.id}
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setPoint({ name: p.name, lat: p.lat, lng: p.lng })}
-                    >
-                      {p.label}: {p.name}
-                    </Button>
-                  ))}
+                <span className="size-3 shrink-0 rounded-[3px] bg-accent" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <PlaceSearch
+                    label="কোথায় যাবেন?"
+                    autoFocus
+                    presetName={dropoff?.name ?? null}
+                    onPick={(p) => setPointFor("dropoff", p)}
+                    onFocusInput={() => setActiveField("dropoff")}
+                  />
                 </div>
               </div>
-            )}
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                onClick={swapPoints}
+                aria-label="পিকআপ ও গন্তব্য উল্টে দিন"
+                title="উল্টে দিন"
+                className="absolute end-3 top-1/2 z-10 size-8 -translate-y-1/2 rounded-full shadow"
+              >
+                <ArrowUpDown className="size-4" aria-hidden />
+              </Button>
+            </div>
 
-            <div>
-              <p className="mb-2 text-sm text-muted-foreground">
-                <MapPinned className="mr-1 inline size-4" aria-hidden />
-                {target === "pickup" ? "পিকআপ" : "গন্তব্য"} হিসেবে বেছে নিন
+            {/* দ্রুত বিকল্প — সক্রিয় ফিল্ডে বসে */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {activeField === "pickup" ? "পিকআপ" : "গন্তব্য"} হিসেবে দ্রুত বেছে নিন:
               </p>
-              <div className="mb-3">
-                <PlaceSearch
-                  label={target === "pickup" ? "পিকআপ" : "গন্তব্য"}
-                  onPick={(p) => setPoint(p)}
-                />
-              </div>
               <div className="flex flex-wrap gap-2">
+                {(saved?.places ?? []).map((p) => (
+                  <Button
+                    key={p.id}
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setPoint({ name: p.name, lat: p.lat, lng: p.lng })}
+                  >
+                    {p.label}: {p.name}
+                  </Button>
+                ))}
                 {places.map((p) => (
                   <Button
                     key={p.name}
@@ -464,12 +498,12 @@ function BookingForm({ rates }: { rates: Rates }) {
                     {p.name}
                   </Button>
                 ))}
-                <Button type="button" size="sm" variant="secondary" onClick={useMyLocation}>
-                  <Crosshair className="size-4" aria-hidden /> আমার অবস্থান
+                <Button type="button" size="sm" variant="secondary" onClick={enterMapMode}>
+                  <MapPinned className="size-4" aria-hidden /> মানচিত্রে বেছে নিন
                 </Button>
               </div>
-              {(target === "pickup" ? pickup : dropoff) && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
+              {(activeField === "pickup" ? pickup : dropoff) && (
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">এই জায়গাটি সংরক্ষণ করুন:</span>
                   {savedPlaceLabels.map((label) => (
                     <Button
@@ -478,7 +512,7 @@ function BookingForm({ rates }: { rates: Rates }) {
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        const p = target === "pickup" ? pickup : dropoff;
+                        const p = activeField === "pickup" ? pickup : dropoff;
                         if (!p) return;
                         savePlaceMutation.mutate({ label, name: p.name, lat: p.lat, lng: p.lng });
                       }}
@@ -490,11 +524,55 @@ function BookingForm({ rates }: { rates: Rates }) {
               )}
             </div>
 
-
-            <div>
-              <p className="mb-2 text-sm text-muted-foreground">
-                অথবা মানচিত্রে ট্যাপ করে {target === "pickup" ? "পিকআপ" : "গন্তব্য"} ঠিক করুন
-              </p>
+            {/* ম্যাপ — পিন টেনে বা ট্যাপ করে বাছাই */}
+            {mapMode ? (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  ম্যাপ টেনে মাঝের পিনটি {activeField === "pickup" ? "পিকআপ" : "গন্তব্য"} জায়গায় আনুন
+                </p>
+                <div className="relative h-80 w-full overflow-hidden rounded-xl border">
+                  <RideMap
+                    showZone
+                    pins={pins}
+                    follow={false}
+                    flyTo={flyTo}
+                    onMove={(lat, lng) => {
+                      setPinPoint({ lat, lng });
+                      scheduleReverse(lat, lng);
+                    }}
+                    className="h-full w-full"
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-0 z-[500] grid place-items-center"
+                    aria-hidden
+                  >
+                    <MapPinIcon
+                      className={`size-10 -translate-y-5 drop-shadow-lg ${activeField === "pickup" ? "text-primary" : "text-accent"}`}
+                      fill="currentColor"
+                      strokeWidth={1}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border p-3">
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {pinLoading
+                      ? "ঠিকানা খোঁজা হচ্ছে…"
+                      : pinName || "ম্যাপ টেনে জায়গা ঠিক করুন"}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={locateOnMap}
+                  >
+                    <Crosshair className="size-4" aria-hidden /> আমার অবস্থান
+                  </Button>
+                  <Button type="button" size="sm" onClick={confirmPin} disabled={!pinPoint}>
+                    এই জায়গা ঠিক করুন
+                  </Button>
+                </div>
+              </div>
+            ) : (
               <RideMap
                 showZone
                 pins={pins}
@@ -505,9 +583,9 @@ function BookingForm({ rates }: { rates: Rates }) {
                     .then((r) => setPoint({ name: r.name, lat, lng }))
                     .catch(() => {});
                 }}
-                className="h-64 w-full overflow-hidden rounded-xl border sm:h-80"
+                className="h-56 w-full overflow-hidden rounded-xl border sm:h-64"
               />
-            </div>
+            )}
           </CardContent>
         </Card>
 
