@@ -9,6 +9,7 @@ import { AppShell } from "@/components/AppShell";
 import { LiveTracking } from "@/components/LiveTracking";
 import { PartyCard } from "@/components/PartyCard";
 import { PlaceSearch } from "@/components/PlaceSearch";
+import { reverseGeocode } from "@/lib/places.functions";
 import { PushSetupCard } from "@/components/PushSetupCard";
 import { OffersPanel } from "@/components/OffersPanel";
 import { SafetyBar } from "@/components/SafetyBar";
