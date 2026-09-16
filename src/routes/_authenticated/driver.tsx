@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Star, TrendingUp } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { toast } from "sonner";
 
@@ -17,10 +17,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { useCurrentPosition } from "@/hooks/useCurrentPosition";
 import { useMe } from "@/hooks/useMe";
+import { Input } from "@/components/ui/input";
 import {
   bn,
+  cancelReasons,
   driverActionLabels,
   money,
+  offerBounds,
+
   statusLabels,
   timeBn,
   vehicleLabels,
@@ -32,7 +36,9 @@ import {
   advanceRide,
   cancelRide,
   getDriverBoard,
+  makeOffer,
   setDriverOnline,
+  type RideRow,
 } from "@/lib/rides.functions";
 
 export const Route = createFileRoute("/_authenticated/driver")({
@@ -50,7 +56,11 @@ export const Route = createFileRoute("/_authenticated/driver")({
 function DriverPage() {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
+  const [declined, setDeclined] = useState<string[]>([]);
+  const [otp, setOtp] = useState("");
+  const [cancelReason, setCancelReason] = useState<string>(cancelReasons[0] ?? "");
   const pos = useCurrentPosition();
+
   // Keep the position out of the query key: GPS jitter must not reset the board.
   const posRef = useRef(pos);
   posRef.current = pos;
@@ -118,12 +128,12 @@ function DriverPage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const advance = useMutation({
-    mutationFn: (rideId: string) => advanceFn({ data: { rideId } }),
+    mutationFn: (rideId: string) => advanceFn({ data: { rideId, pickupCode: otp.trim() } }),
     onSuccess: () => refresh(),
     onError: (e: Error) => toast.error(e.message),
   });
   const drop = useMutation({
-    mutationFn: (rideId: string) => cancelFn({ data: { rideId } }),
+    mutationFn: (rideId: string) => cancelFn({ data: { rideId, reason: cancelReason } }),
     onSuccess: () => {
       toast.success("রাইড বাতিল হয়েছে");
       void refresh();
@@ -221,33 +231,69 @@ function DriverPage() {
                 <Field label="ভাড়া (নগদ)" value={money(active.fare)} />
                 <Field label="যাত্রী সংখ্যা" value={`${bn(active.passengers)} জন`} />
               </div>
-              <PartyCard kind="rider" phone={active.riderPhone ?? null} />
+              <PartyCard
+                kind="rider"
+                name={active.riderName ?? null}
+                rating={active.riderRating ?? null}
+                phone={active.riderPhone ?? null}
+              />
               {active.note && (
                 <p className="rounded-lg bg-secondary p-3 text-sm">নোট: {active.note}</p>
               )}
 
-
               <LiveTracking ride={active} me={me?.userId ?? ""} />
+
+              {active.status === "arrived" && (
+                <div className="space-y-2 rounded-xl border border-dashed p-4">
+                  <p className="text-sm font-medium">যাত্রীর পিকআপ কোড দিন</p>
+                  <p className="text-xs text-muted-foreground">
+                    যাত্রীর স্ক্রিনে থাকা ৪ সংখ্যার কোড মিলিয়ে যাত্রা শুরু করুন।
+                  </p>
+                  <Input
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    inputMode="numeric"
+                    placeholder="০০০০"
+                    aria-label="পিকআপ কোড"
+                    className="max-w-32 text-center text-lg tracking-widest"
+                  />
+                </div>
+              )}
 
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   size="lg"
                   className="flex-1"
                   onClick={() => advance.mutate(active.id)}
-                  disabled={advance.isPending}
+                  disabled={advance.isPending || (active.status === "arrived" && otp.length !== 4)}
                 >
                   {driverActionLabels[active.status as RideStatus] ?? "পরবর্তী ধাপ"}
                 </Button>
                 {active.status !== "in_progress" && (
-                  <Button
-                    variant="outline"
-                    className="text-destructive"
-                    onClick={() => drop.mutate(active.id)}
-                    disabled={drop.isPending}
-                  >
-                    বাতিল
-                  </Button>
+                  <div className="flex gap-2">
+                    <select
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      aria-label="বাতিলের কারণ"
+                      className="rounded-md border bg-background px-3 py-2 text-sm"
+                    >
+                      {cancelReasons.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={() => drop.mutate(active.id)}
+                      disabled={drop.isPending}
+                    >
+                      বাতিল
+                    </Button>
+                  </div>
                 )}
+
               </div>
             </CardContent>
           </Card>
@@ -268,38 +314,26 @@ function DriverPage() {
                 <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
                   অ্যাডমিন অনুমোদন দিলেই এখানে রাইডের অনুরোধ দেখতে পাবেন।
                 </p>
-              ) : queue.length === 0 ? (
+              ) : queue.filter((r) => !declined.includes(r.id)).length === 0 ? (
                 <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
                   এখন কোনো অনুরোধ নেই। অনলাইন থাকুন — নতুন অনুরোধ এলেই এখানে দেখাবে।
                 </p>
               ) : (
-                queue.map((r) => (
-                  <div key={r.id} className="rounded-xl border p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">{r.pickup.name}</p>
-                        <p className="text-sm text-muted-foreground">→ {r.dropoff.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {bn(r.distance)} কিমি · {bn(r.passengers)} জন · {timeBn(r.createdAt)}
-                          {(r as any).pickupAwayKm !== undefined &&
-                            ` · আপনার থেকে ${bn((r as any).pickupAwayKm)} কিমি`}
-                        </p>
-                      </div>
-                      <div className="text-end">
-                        <p className="text-xl font-bold">{money(r.fare)}</p>
-                      </div>
-                    </div>
-                    {r.note && <p className="mt-2 text-sm text-muted-foreground">নোট: {r.note}</p>}
-                    <Button
-                      className="mt-3 w-full"
-                      onClick={() => accept.mutate(r.id)}
-                      disabled={accept.isPending || !driver.online}
-                    >
-                      {driver.online ? "রাইড গ্রহণ করুন" : "আগে অনলাইন হোন"}
-                    </Button>
-                  </div>
-                ))
+                queue
+                  .filter((r) => !declined.includes(r.id))
+                  .map((r) => (
+                    <QueueItem
+                      key={r.id}
+                      ride={r}
+                      online={driver.online}
+                      onAccept={() => accept.mutate(r.id)}
+                      onDecline={() => setDeclined((d) => [...d, r.id])}
+                      onRefresh={refresh}
+                      busy={accept.isPending}
+                    />
+                  ))
               )}
+
             </CardContent>
           </Card>
         )}
@@ -330,6 +364,93 @@ function Field({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="font-medium">{value}</p>
+    </div>
+  );
+}
+
+/** One open request: accept at the rider's fare, propose your own, or skip. */
+function QueueItem({
+  ride,
+  online,
+  busy,
+  onAccept,
+  onDecline,
+  onRefresh,
+}: {
+  ride: RideRow & { myOffer?: { amount: number; status: string } | null };
+  online: boolean;
+  busy: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+  onRefresh: () => void;
+}) {
+  const bounds = offerBounds(ride.fare);
+  const [amount, setAmount] = useState(String(ride.myOffer?.amount ?? ride.fare));
+  const offerFn = useServerFn(makeOffer);
+  const offer = useMutation({
+    mutationFn: () => offerFn({ data: { rideId: ride.id, amount: Number(amount) } }),
+    onSuccess: () => {
+      toast.success("আপনার প্রস্তাব যাত্রীর কাছে পাঠানো হয়েছে");
+      onRefresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const away = (ride as RideRow & { pickupAwayKm?: number }).pickupAwayKm;
+
+  return (
+    <div className="rounded-xl border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">{ride.pickup.name}</p>
+          <p className="text-sm text-muted-foreground">→ {ride.dropoff.name}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {bn(ride.distance)} কিমি · {bn(ride.passengers)} জন · {timeBn(ride.createdAt)}
+            {away !== undefined && ` · আপনার থেকে ${bn(away)} কিমি`}
+          </p>
+        </div>
+        <div className="text-end">
+          <p className="text-xl font-bold">{money(ride.fare)}</p>
+          {ride.pricingMode === "negotiated" && (
+            <Badge variant="secondary" className="mt-1">
+              যাত্রীর প্রস্তাব
+            </Badge>
+          )}
+        </div>
+      </div>
+      {ride.note && <p className="mt-2 text-sm text-muted-foreground">নোট: {ride.note}</p>}
+
+      {ride.myOffer && (
+        <p className="mt-2 text-sm text-primary">
+          আপনি {money(ride.myOffer.amount)} প্রস্তাব করেছেন — যাত্রীর উত্তরের অপেক্ষায়।
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-col gap-2">
+        <Button onClick={onAccept} disabled={busy || !online}>
+          {online ? `${money(ride.fare)} — রাইড গ্রহণ করুন` : "আগে অনলাইন হোন"}
+        </Button>
+        {ride.pricingMode === "negotiated" && online && (
+          <div className="flex gap-2">
+            <Input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 5))}
+              inputMode="numeric"
+              aria-label="আপনার প্রস্তাবিত ভাড়া"
+              placeholder={`${bounds.min}–${bounds.max}`}
+            />
+            <Button
+              variant="secondary"
+              onClick={() => offer.mutate()}
+              disabled={offer.isPending || !amount}
+            >
+              ভাড়া প্রস্তাব
+            </Button>
+          </div>
+        )}
+        <Button variant="ghost" size="sm" onClick={onDecline}>
+          আগ্রহী নই
+        </Button>
+      </div>
     </div>
   );
 }

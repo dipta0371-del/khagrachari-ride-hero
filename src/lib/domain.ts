@@ -183,3 +183,46 @@ export function timeBn(iso: string) {
   const time = `${bn(h12)}:${String(d.getMinutes()).padStart(2, "0").replace(/\d/g, (c) => bn(Number(c)))}`;
   return `${date}, ${dayPeriodBn(d.getHours())} ${time}`;
 }
+
+/* ---------------- fare bargaining (inDriver style) ---------------- */
+
+export type PricingMode = "fixed" | "negotiated";
+
+/** Riders may offer down to 80% of the metered fare, and up to 3x. */
+export const MIN_OFFER_RATIO = 0.8;
+export const MAX_OFFER_RATIO = 3;
+
+export function offerBounds(fare: number) {
+  return {
+    min: Math.max(10, Math.round(fare * MIN_OFFER_RATIO)),
+    max: Math.round(fare * MAX_OFFER_RATIO),
+  };
+}
+
+export const offerStatusLabels: Record<string, string> = {
+  pending: "অপেক্ষমাণ",
+  accepted: "গৃহীত",
+  rejected: "বাতিল",
+};
+
+export const cancelReasons = [
+  "অনেক দেরি হচ্ছে",
+  "ভুল ঠিকানা দিয়েছি",
+  "আর দরকার নেই",
+  "অন্য যান পেয়ে গেছি",
+  "ভাড়ায় মিল হয়নি",
+  "অন্য কারণ",
+] as const;
+
+export const reportCategories = [
+  "চালকের আচরণ",
+  "যাত্রীর আচরণ",
+  "ভাড়া নিয়ে সমস্যা",
+  "নিরাপত্তা সমস্যা",
+  "গাড়ির অবস্থা",
+  "অন্য কিছু",
+] as const;
+
+export const savedPlaceLabels = ["বাসা", "কর্মস্থল", "প্রিয় জায়গা"] as const;
+
+export const EMERGENCY_NUMBER = "999";

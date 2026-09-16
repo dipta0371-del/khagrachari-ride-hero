@@ -10,6 +10,8 @@ import {
   bookingSchema,
   distanceKm,
   nextStatus,
+  offerBounds,
+
   quote,
   ratesSchema,
   type Rates,
@@ -36,7 +38,7 @@ async function loadRates(db: AnyClient): Promise<Rates> {
 }
 
 const RIDE_COLUMNS =
-  "id, rider_id, driver_id, status, vehicle, passengers, note, pickup_name, pickup_lat, pickup_lng, dropoff_name, dropoff_lat, dropoff_lng, distance_km, fare, cancel_reason, created_at, updated_at";
+  "id, rider_id, driver_id, status, vehicle, passengers, note, pickup_name, pickup_lat, pickup_lng, dropoff_name, dropoff_lat, dropoff_lng, distance_km, fare, cancel_reason, created_at, updated_at, pricing_mode, offered_fare, pickup_code, share_token, cancelled_by, started_at, completed_at";
 
 export interface RideRow {
   id: string;
@@ -53,11 +55,22 @@ export interface RideRow {
   cancelReason: string | null;
   createdAt: string;
   updatedAt: string;
+  pricingMode: "fixed" | "negotiated";
+  offeredFare: number | null;
+  pickupCode: string | null;
+  shareToken: string | null;
+  cancelledBy: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
   riderName?: string | null;
   riderPhone?: string | null;
+  riderRating?: { average: number | null; total: number } | null;
   driverName?: string | null;
   driverPhone?: string | null;
   driverPlate?: string | null;
+  driverRating?: { average: number | null; total: number } | null;
+  pickupAwayKm?: number;
+  offerCount?: number;
 }
 
 function mapRide(r: any): RideRow {
@@ -76,8 +89,16 @@ function mapRide(r: any): RideRow {
     cancelReason: r.cancel_reason ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    pricingMode: (r.pricing_mode ?? "fixed") as "fixed" | "negotiated",
+    offeredFare: r.offered_fare ?? null,
+    pickupCode: r.pickup_code ?? null,
+    shareToken: r.share_token ?? null,
+    cancelledBy: r.cancelled_by ?? null,
+    startedAt: r.started_at ?? null,
+    completedAt: r.completed_at ?? null,
   };
 }
+
 
 /** Attach the counterparty's name / phone / plate where policy allows it. */
 async function decorate(db: AnyClient, rides: RideRow[]): Promise<RideRow[]> {
@@ -91,15 +112,39 @@ async function decorate(db: AnyClient, rides: RideRow[]): Promise<RideRow[]> {
   ]);
   const pMap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
   const dMap = new Map<string, any>((drivers ?? []).map((d: any) => [d.user_id, d]));
+  const ratings = await ratingsFor(db, ids);
   return rides.map((r) => ({
     ...r,
     riderName: pMap.get(r.riderId)?.full_name ?? null,
     riderPhone: pMap.get(r.riderId)?.phone ?? null,
+    riderRating: ratings.get(r.riderId) ?? { average: null, total: 0 },
     driverName: r.driverId ? (pMap.get(r.driverId)?.full_name ?? null) : null,
     driverPhone: r.driverId ? (pMap.get(r.driverId)?.phone ?? null) : null,
     driverPlate: r.driverId ? (dMap.get(r.driverId)?.plate ?? null) : null,
+    driverRating: r.driverId ? (ratings.get(r.driverId) ?? { average: null, total: 0 }) : null,
   }));
 }
+
+/** Average rating per user, via the security-definer helper. */
+async function ratingsFor(db: AnyClient, ids: string[]) {
+  const map = new Map<string, { average: number | null; total: number }>();
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const { data } = await (db as any).rpc("user_rating", { _user_id: id });
+        const row = Array.isArray(data) ? data[0] : data;
+        map.set(id, {
+          average: row?.average != null ? Number(row.average) : null,
+          total: Number(row?.total ?? 0),
+        });
+      } catch {
+        map.set(id, { average: null, total: 0 });
+      }
+    }),
+  );
+  return map;
+}
+
 
 /* ------------------------------------------------------------------ */
 /* public                                                              */
@@ -238,7 +283,14 @@ export const claimAdmin = createServerFn({ method: "POST" })
 export const bookRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    bookingSchema.extend({ idempotencyKey: z.string().uuid(), expectedFare: z.number().int() }).parse(d),
+    bookingSchema
+      .extend({
+        idempotencyKey: z.string().uuid(),
+        expectedFare: z.number().int(),
+        pricingMode: z.enum(["fixed", "negotiated"]).default("fixed"),
+        offeredFare: z.number().int().positive().max(10000).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as AnyClient;
@@ -247,6 +299,16 @@ export const bookRide = createServerFn({ method: "POST" })
     if (q.fare !== data.expectedFare) {
       fail(`ভাড়া হালনাগাদ হয়েছে — নতুন ভাড়া ৳${q.fare}। আবার নিশ্চিত করুন।`);
     }
+    const bounds = offerBounds(q.fare);
+    let fare = q.fare;
+    if (data.pricingMode === "negotiated") {
+      const offered = data.offeredFare ?? q.fare;
+      if (offered < bounds.min || offered > bounds.max) {
+        fail(`প্রস্তাবিত ভাড়া ৳${bounds.min} থেকে ৳${bounds.max} এর মধ্যে দিন।`);
+      }
+      fare = offered;
+    }
+
 
     const { data: existing } = await db
       .from("rides")
@@ -279,8 +341,11 @@ export const bookRide = createServerFn({ method: "POST" })
         dropoff_lat: data.dropoff.lat,
         dropoff_lng: data.dropoff.lng,
         distance_km: q.distance,
-        fare: q.fare,
+        fare,
+        pricing_mode: data.pricingMode,
+        offered_fare: data.pricingMode === "negotiated" ? fare : null,
         idempotency_key: data.idempotencyKey,
+
       })
       .select(RIDE_COLUMNS)
       .single();
@@ -308,7 +373,7 @@ export const bookRide = createServerFn({ method: "POST" })
         await notifyUsers(
           free,
           "নতুন রাইড অনুরোধ",
-          `${data.pickup.name} → ${data.dropoff.name} · ভাড়া ৳${q.fare}`,
+          `${data.pickup.name} → ${data.dropoff.name} · ভাড়া ৳${fare}${data.pricingMode === "negotiated" ? " (দরদাম)" : ""}`,
           { rideId: row.id, path: "/driver" },
         );
       }
@@ -339,7 +404,14 @@ export const getMyRides = createServerFn({ method: "GET" })
 
 export const cancelRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ rideId: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        rideId: z.string().uuid(),
+        reason: z.string().trim().max(120).default(""),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as AnyClient;
     const { data: ride } = await db
@@ -351,13 +423,16 @@ export const cancelRide = createServerFn({ method: "POST" })
     if (!activeStatuses.includes(ride.status)) fail("এই রাইড আর বাতিল করা যাবে না।");
     if (ride.status === "in_progress") fail("চলমান রাইড বাতিল করা যাবে না।");
     const byRider = ride.rider_id === context.userId;
+    const who = byRider ? "যাত্রী" : "চালক";
     const { error } = await db
       .from("rides")
       .update({
         status: "cancelled",
-        cancel_reason: byRider ? "যাত্রী বাতিল করেছেন" : "চালক বাতিল করেছেন",
+        cancelled_by: context.userId,
+        cancel_reason: data.reason ? `${who}: ${data.reason}` : `${who} বাতিল করেছেন`,
       })
       .eq("id", data.rideId);
+
     if (error) fail(error.message);
     await db.from("ride_locations").delete().eq("ride_id", data.rideId);
 
@@ -490,10 +565,26 @@ export const getDriverBoard = createServerFn({ method: "POST" })
       .eq("ratee_id", context.userId);
     const scores = (ratings ?? []).map((r: any) => r.score);
 
+    // The pickup code belongs to the rider only — never send it to a driver.
+    const hideCode = (r: RideRow): RideRow => ({ ...r, pickupCode: null });
+    const { data: myOffers } = await db
+      .from("ride_offers")
+      .select("ride_id, amount, status")
+      .eq("driver_id", context.userId);
+    const offerMap = new Map<string, any>(
+      ((myOffers ?? []) as any[]).map((o) => [o.ride_id as string, o]),
+    );
+
     return {
       driver,
-      queue: await decorate(db, queue),
-      active: (await decorate(db, (activeRows ?? []).map(mapRide)))[0] ?? null,
+      queue: (await decorate(db, queue)).map((r) => ({
+        ...hideCode(r),
+        myOffer: offerMap.get(r.id)
+          ? { amount: offerMap.get(r.id).amount as number, status: offerMap.get(r.id).status as string }
+          : null,
+      })),
+      active: (await decorate(db, (activeRows ?? []).map(mapRide))).map(hideCode)[0] ?? null,
+
       earnings: {
         todayCount: today.length,
         todayTotal: sum(today),
@@ -552,20 +643,31 @@ export const acceptRide = createServerFn({ method: "POST" })
 
 export const advanceRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ rideId: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({ rideId: z.string().uuid(), pickupCode: z.string().trim().max(8).optional() })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as AnyClient;
     const { data: ride } = await db
       .from("rides")
-      .select("status, driver_id, rider_id")
+      .select("status, driver_id, rider_id, pickup_code")
       .eq("id", data.rideId)
       .maybeSingle();
     if (!ride || ride.driver_id !== context.userId) fail("এই রাইড আপনার নয়।");
     const next = nextStatus[ride.status as RideStatus];
     if (!next) fail("এই ধাপ থেকে আর এগোনো যাবে না।");
-    const { error } = await db.from("rides").update({ status: next }).eq("id", data.rideId);
+    if (next === "in_progress" && (data.pickupCode ?? "") !== String(ride.pickup_code ?? "")) {
+      fail("পিকআপ কোড মেলেনি — যাত্রীর স্ক্রিনের ৪ সংখ্যার কোড দিন।");
+    }
+    const patch: Record<string, unknown> = { status: next };
+    if (next === "in_progress") patch['started_at'] = new Date().toISOString();
+    if (next === "completed") patch['completed_at'] = new Date().toISOString();
+    const { error } = await db.from("rides").update(patch).eq("id", data.rideId);
     if (error) fail(error.message);
     if (next === "completed") await db.from("ride_locations").delete().eq("ride_id", data.rideId);
+
 
     if (next === "arrived") {
       await notifyUser(ride.rider_id, "চালক পৌঁছেছেন", "আপনার চালক পিকআপ স্পটে পৌঁছেছেন।", {
@@ -755,4 +857,304 @@ export const updateRates = createServerFn({ method: "POST" })
     const { error } = await db.from("app_settings").update({ value: data }).eq("key", "rates");
     if (error) fail(error.message);
     return { ok: true };
+  });
+
+/* ------------------------------------------------------------------ */
+/* fare bargaining (inDriver style)                                    */
+/* ------------------------------------------------------------------ */
+
+export interface OfferRow {
+  id: string;
+  rideId: string;
+  driverId: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  driverPlate: string | null;
+  driverVehicle: Vehicle | null;
+  rating: { average: number | null; total: number };
+  awayKm: number | null;
+  etaMin: number | null;
+}
+
+/** Driver proposes their own fare for an open request. */
+export const makeOffer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        rideId: z.string().uuid(),
+        amount: z.number().int().positive().max(10000),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data: ride } = await db
+      .from("rides")
+      .select("id, status, rider_id, fare, pickup_name, dropoff_name")
+      .eq("id", data.rideId)
+      .maybeSingle();
+    if (!ride) fail("রাইড পাওয়া যায়নি।");
+    if (ride.status !== "requested") fail("এই অনুরোধটি আর খোলা নেই।");
+    const bounds = offerBounds(ride.fare);
+    if (data.amount < bounds.min || data.amount > bounds.max) {
+      fail(`ভাড়া ৳${bounds.min} থেকে ৳${bounds.max} এর মধ্যে প্রস্তাব করুন।`);
+    }
+    const { error } = await db
+      .from("ride_offers")
+      .upsert(
+        { ride_id: data.rideId, driver_id: context.userId, amount: data.amount, status: "pending" },
+        { onConflict: "ride_id,driver_id" },
+      );
+    if (error) fail("প্রস্তাব পাঠানো যায়নি — আবার চেষ্টা করুন।");
+    await notifyUser(ride.rider_id, "নতুন ভাড়ার প্রস্তাব", `একজন চালক ৳${data.amount} প্রস্তাব করেছেন।`, {
+      rideId: data.rideId,
+      path: "/book",
+    });
+    return { ok: true };
+  });
+
+export const withdrawOffer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ rideId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    await db
+      .from("ride_offers")
+      .delete()
+      .eq("ride_id", data.rideId)
+      .eq("driver_id", context.userId);
+    return { ok: true };
+  });
+
+/** Rider sees every offer on their open ride. */
+export const listOffers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ rideId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ offers: OfferRow[] }> => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data: ride } = await db
+      .from("rides")
+      .select("id, rider_id, status, pickup_lat, pickup_lng, vehicle")
+      .eq("id", data.rideId)
+      .maybeSingle();
+    if (!ride || ride.rider_id !== context.userId) return { offers: [] };
+    const { data: rows } = await db
+      .from("ride_offers")
+      .select("id, ride_id, driver_id, amount, status, created_at")
+      .eq("ride_id", data.rideId)
+      .eq("status", "pending")
+      .order("amount", { ascending: true });
+    const offers = (rows ?? []) as any[];
+    if (!offers.length) return { offers: [] };
+    const ids = offers.map((o) => o.driver_id as string);
+    const [{ data: profiles }, { data: drivers }, { data: locs }] = await Promise.all([
+      db.from("profiles").select("id, full_name, phone").in("id", ids),
+      db.from("drivers").select("user_id, plate, vehicle").in("user_id", ids),
+      Promise.resolve({ data: [] as any[] }),
+    ]);
+    void locs;
+    const pMap = new Map<string, any>(((profiles ?? []) as any[]).map((p) => [p.id, p]));
+    const dMap = new Map<string, any>(((drivers ?? []) as any[]).map((d) => [d.user_id, d]));
+    const ratings = await ratingsFor(db, ids);
+    return {
+      offers: offers.map((o) => ({
+        id: o.id,
+        rideId: o.ride_id,
+        driverId: o.driver_id,
+        amount: o.amount,
+        status: o.status,
+        createdAt: o.created_at,
+        driverName: pMap.get(o.driver_id)?.full_name ?? null,
+        driverPhone: pMap.get(o.driver_id)?.phone ?? null,
+        driverPlate: dMap.get(o.driver_id)?.plate ?? null,
+        driverVehicle: (dMap.get(o.driver_id)?.vehicle ?? null) as Vehicle | null,
+        rating: ratings.get(o.driver_id) ?? { average: null, total: 0 },
+        awayKm: null,
+        etaMin: null,
+      })),
+    };
+  });
+
+/** Rider picks one offer; that driver gets the ride at the agreed fare. */
+export const acceptOffer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ rideId: z.string().uuid(), offerId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data: offer } = await db
+      .from("ride_offers")
+      .select("id, ride_id, driver_id, amount, status")
+      .eq("id", data.offerId)
+      .eq("ride_id", data.rideId)
+      .maybeSingle();
+    if (!offer) fail("প্রস্তাবটি আর নেই।");
+    const { data: row, error } = await db
+      .from("rides")
+      .update({ driver_id: offer.driver_id, status: "accepted", fare: offer.amount })
+      .eq("id", data.rideId)
+      .eq("rider_id", context.userId)
+      .eq("status", "requested")
+      .select(RIDE_COLUMNS)
+      .maybeSingle();
+    if (error || !row) fail("রাইডটি আর খোলা নেই।");
+    await db.from("ride_offers").update({ status: "accepted" }).eq("id", data.offerId);
+    await db
+      .from("ride_offers")
+      .update({ status: "rejected" })
+      .eq("ride_id", data.rideId)
+      .neq("id", data.offerId);
+    await notifyUser(offer.driver_id, "আপনার প্রস্তাব গৃহীত", `যাত্রী ৳${offer.amount} ভাড়ায় রাজি হয়েছেন।`, {
+      rideId: data.rideId,
+      path: "/driver",
+    });
+    return mapRide(row);
+  });
+
+/* ------------------------------------------------------------------ */
+/* saved places, reports, availability                                 */
+/* ------------------------------------------------------------------ */
+
+export const listSavedPlaces = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data } = await db
+      .from("saved_places")
+      .select("id, label, name, lat, lng")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: true });
+    return { places: (data ?? []) as { id: string; label: string; name: string; lat: number; lng: number }[] };
+  });
+
+export const savePlace = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        label: z.string().trim().min(1).max(30),
+        name: z.string().trim().min(2).max(120),
+        lat: z.number().finite(),
+        lng: z.number().finite(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { error } = await db.from("saved_places").upsert(
+      { user_id: context.userId, label: data.label, name: data.name, lat: data.lat, lng: data.lng },
+      { onConflict: "user_id,label" },
+    );
+    if (error) fail("জায়গাটি সংরক্ষণ হয়নি।");
+    return { ok: true };
+  });
+
+export const deleteSavedPlace = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    await db.from("saved_places").delete().eq("id", data.id).eq("user_id", context.userId);
+    return { ok: true };
+  });
+
+export const reportRide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        rideId: z.string().uuid(),
+        category: z.string().trim().min(2).max(60),
+        details: z.string().trim().max(500).default(""),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { error } = await db.from("ride_reports").insert({
+      ride_id: data.rideId,
+      reporter_id: context.userId,
+      category: data.category,
+      details: data.details ?? "",
+    });
+    if (error) fail("রিপোর্ট পাঠানো যায়নি।");
+    return { ok: true };
+  });
+
+/** How many approved drivers are online right now, per vehicle type. */
+export const driverAvailability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as AnyClient;
+    const { data } = await admin
+      .from("drivers")
+      .select("vehicle")
+      .eq("approved", true)
+      .eq("online", true);
+    const rows = (data ?? []) as any[];
+    return {
+      bike: rows.filter((r) => r.vehicle === "bike").length,
+      tomtom: rows.filter((r) => r.vehicle === "tomtom").length,
+    };
+  });
+
+/* ------------------------------------------------------------------ */
+/* public trip sharing                                                 */
+/* ------------------------------------------------------------------ */
+
+/** Read-only live view for a shared trip link. The token is the credential. */
+export const getSharedTrip = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ token: z.string().trim().min(8).max(64) }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as AnyClient;
+    const { data: ride } = await admin
+      .from("rides")
+      .select(
+        "id, status, vehicle, pickup_name, pickup_lat, pickup_lng, dropoff_name, dropoff_lat, dropoff_lng, driver_id, rider_id, fare, distance_km, created_at",
+      )
+      .eq("share_token", data.token)
+      .maybeSingle();
+    if (!ride) return { found: false as const };
+    let driverAt: { lat: number; lng: number; capturedAt: number } | null = null;
+    if (activeStatuses.includes(ride.status) && ride.driver_id) {
+      const { data: loc } = await admin
+        .from("ride_locations")
+        .select("lat, lng, captured_at")
+        .eq("ride_id", ride.id)
+        .eq("user_id", ride.driver_id)
+        .maybeSingle();
+      if (loc) {
+        const capturedAt = new Date(loc.captured_at).getTime();
+        if (Date.now() - capturedAt <= LOCATION_STALE_MS) {
+          driverAt = { lat: loc.lat, lng: loc.lng, capturedAt };
+        }
+      }
+    }
+    let plate: string | null = null;
+    if (ride.driver_id) {
+      const { data: d } = await admin
+        .from("drivers")
+        .select("plate")
+        .eq("user_id", ride.driver_id)
+        .maybeSingle();
+      plate = d?.plate ?? null;
+    }
+    return {
+      found: true as const,
+      status: ride.status as RideStatus,
+      vehicle: ride.vehicle as Vehicle,
+      pickup: { name: ride.pickup_name, lat: ride.pickup_lat, lng: ride.pickup_lng },
+      dropoff: { name: ride.dropoff_name, lat: ride.dropoff_lat, lng: ride.dropoff_lng },
+      distance: Number(ride.distance_km),
+      fare: ride.fare as number,
+      plate,
+      driverAt,
+    };
   });
