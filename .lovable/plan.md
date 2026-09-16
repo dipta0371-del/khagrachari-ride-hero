@@ -10,7 +10,10 @@
 ## যা Emergent-কে দিতে হবে
 1. GitHub repo লিংক (উপরে) — repo public না হলে public করো বা Emergent-কে access দাও।
 2. Firebase `google-services.json` (Firebase Console → cht-gari → Android app `com.amarkgc.chtgari` → download) — attach করো।
-3. Supabase URL + anon key (যদি একই backend ব্যবহার করাতে চাও)।
+3. **Supabase credentials (শুধু নিচের দুটো):**
+   - Supabase project URL
+   - Supabase anon/publishable key
+   - **Service role key কখনো দেবেন না** — সেটা শুধর server-এর।
 4. অ্যাপ আইকন / ব্র্যান্ড কালার (`#2F5D3C`)।
 
 ---
@@ -72,9 +75,19 @@ IMPORTANT: Read the GitHub repo thoroughly before writing code. The fare calcula
 
 ---
 
+## কোথায় থেকে Supabase URL আর Anon Key পাবেন
+Lovable editor-এ:
+1. **Cloud** বা **Backend** প্যানেল খুলুন
+2. **Project settings / Environment variables / Supabase** সেকশনে দেখুন
+3. দুটো value কপি করুন:
+   - `SUPABASE_URL` (যেমন `https://othzgksynaxdodfokegp.supabase.co` — নিজের প্রজেক্টেরটা হবে)
+   - `SUPABASE_ANON_KEY` বা `SUPABASE_PUBLISHABLE_KEY`
+
+এই দুটো শুধু mobile app frontend-কে backend-এ connect করতে লাগে; user login, database read/write RLS-এর মাধ্যমে secure।
+
 ## Prompt দেওয়ার পর Emergent যা চাইবে
-- Supabase URL + anon key → Lovable-এ Cloud settings থেকে পাবে
-- `google-services.json` → attach করো
+- Supabase URL + anon key → উপরের স্টেপ থেকে
+- `google-services.json` → Firebase Console থেকে download করে attach করো
 - Google Maps API key → তোমার Google Cloud Console থেকে
 - অ্যাপ আইকন → নিজের লোগো ফাইল
 
