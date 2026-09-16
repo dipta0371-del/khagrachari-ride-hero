@@ -13,16 +13,17 @@ export type RideStatus =
   | "completed"
   | "cancelled";
 
-export const CENTER = { lat: 23.1193, lng: 91.9847 };
+export const CENTER = { lat: 23.1085, lng: 91.98 };
 export const SERVICE_RADIUS_KM = 10;
 
+/** Coordinates verified against Google Places. */
 export const places = [
-  { name: "শাপলা চত্বর", lat: 23.1199, lng: 91.9849 },
-  { name: "খাগড়াছড়ি বাস টার্মিনাল", lat: 23.1076, lng: 91.9845 },
-  { name: "খাগড়াছড়ি বাজার", lat: 23.1187, lng: 91.9818 },
-  { name: "খাগড়াছড়ি স্টেডিয়াম", lat: 23.1126, lng: 91.9879 },
-  { name: "সরকারি কলেজ এলাকা", lat: 23.1091, lng: 91.982 },
-  { name: "জেলা পরিষদ পার্ক এলাকা", lat: 23.137, lng: 91.992 },
+  { name: "শাপলা চত্বর", lat: 23.1062, lng: 91.9822 },
+  { name: "খাগড়াছড়ি বাস টার্মিনাল", lat: 23.1108, lng: 91.9739 },
+  { name: "খাগড়াছড়ি বাজার", lat: 23.1055, lng: 91.9829 },
+  { name: "খাগড়াছড়ি স্টেডিয়াম", lat: 23.1236, lng: 91.9675 },
+  { name: "খাগড়াছড়ি সরকারি কলেজ", lat: 23.1136, lng: 91.9774 },
+  { name: "জেলা পরিষদ হর্টিকালচার পার্ক", lat: 23.0982, lng: 91.9723 },
 ];
 
 export const pointSchema = z.object({
