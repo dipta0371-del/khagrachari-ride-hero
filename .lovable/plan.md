@@ -22,7 +22,7 @@
 নগদ টাকায় পেমেন্ট, ১০ কিমি এলাকা, ইচ্ছামতো দরদাম, চালক ও অ্যাডমিনের পাতা, আর এখনকার লগইন।
 
 ## কারিগরি বিবরণ
-- `book.tsx`: এক পাতার ভেতরেই ধাপগুলো ভাগ হবে (idle → search → choose → matching → enroute → completed)। নিচের প্যানেলের জন্য একটা `BottomSheet` component আসবে, পেছনের লেখাগুলো ডাক্তারকে দেখাই না এমন—শুধু UI।
+- `book.tsx`: এক পাতার ভেতরেই ধাপগুলো ভাগ হবে (idle → search → choose → matching → enroute → completed)। নিচের প্যানেলের জন্য একটা `BottomSheet` component আসবে (শুধু UI)।
 - `LiveTracking.tsx`, `SafetyBar.tsx`, `PartyCard.tsx`: নিচের প্যানেলের নকশায় সাজানো হবে।
 - রাইড শেষের পাতা আর রিসিট: `rides.tsx` থেকে খুলবে। ভাড়ার ভাগ আসবে `domain.ts`-এর `quote` থেকে।
 - ডেটাবেসে কোনো বদল নেই। বাতিল করা আর রেটিং দেওয়ার জন্য আগের server function-গুলোই ব্যবহার হবে।
