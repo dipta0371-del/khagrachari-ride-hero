@@ -1,99 +1,29 @@
-# CHT GARI — Emergent.sh Android-only APK: চূড়ান্ত prompt
+# Uber গাইড অনুযায়ী CHT GARI রাইডার অভিজ্ঞতা আপডেট
 
-## গুরুত্বপূর্ণ তথ্য (যাচাই করা)
-- Emergent-এর Mobile Agent শুধু **Expo/React Native** stack-এ কাজ করে [2](https://help.emergent.sh/mobile-app-development) — paid plan ($20+/month) লাগে, free tier-এ নেই।
-- আমাদের অ্যাপ TanStack Start + Capacitor। Emergent সরাসরি এই Capacitor প্রজেক্ট build করবে না — সে নতুন করে Expo-তে বানাবে।
-- আপনার repo: `https://github.com/dipta0371-del/khagrachari-ride-hero.git`
-- Package name: `com.amarkgc.chtgari`, Firebase project: `cht-gari`
-- Live web app: `https://chtgari.com` (backend Supabase)
+## তিনটা ফাইল নিয়ে
+- ফাইল ১ আর ফাইল ২ হুবহু এক।
+- ফাইল ৩ একই লেখার একটু ভালো করে গোছানো সংস্করণ। তাই কাজটা ফাইল ৩ ধরে হবে।
+- গাইডে যা "প্রমাণিত" বলে লেখা, শুধু সেগুলোই নেব। আমাদের এলাকায় খাটে না এমন জিনিস বাদ থাকবে, যেমন কার্ড পেমেন্ট, ৯০ দিন আগে বুকিং, 911 বা passkey।
 
-## যা Emergent-কে দিতে হবে
-1. GitHub repo লিংক (উপরে) — repo public না হলে public করো বা Emergent-কে access দাও।
-2. Firebase `google-services.json` (Firebase Console → cht-gari → Android app `com.amarkgc.chtgari` → download) — attach করো।
-3. **Supabase credentials (শুধু নিচের দুটো):**
-   - Supabase project URL
-   - Supabase anon/publishable key
-   - **Service role key কখনো দেবেন না** — সেটা শুধর server-এর।
-4. অ্যাপ আইকন / ব্র্যান্ড কালার (`#2F5D3C`)।
+## যা বদলাবে (স্ক্রিন ধরে)
 
----
+1. **হোম / বুকিং পাতা**: ম্যাপ পুরো স্ক্রিন জুড়ে থাকবে। উপরে বড় একটা "কোথায় যাবেন?" বার থাকবে। ট্যাপ করলে পিকআপ আর গন্তব্যের ঘর খুলবে, সাথে আগে সেভ করা ও জনপ্রিয় জায়গা (এখনকার দুই সারির খোঁজার ঘর এই ধাপেই আসবে)।
+2. **যান বাছাই**: নিচ থেকে একটা প্যানেল উঠবে। তাতে বাইক আর টমটমের কার্ড পাশাপাশি থাকবে, প্রতিটায় ভাড়া আর কত মিনিটে আসবে লেখা। "i" চাপলে ভাড়ার ভাগ দেখা যাবে (মূল ভাড়া, প্রতি কিমি, দূরত্ব)। বোতামে লেখা থাকবে "বাইক নিশ্চিত করুন" বা "টমটম নিশ্চিত করুন"। ইচ্ছামতো দরদামের ঘর আগের মতোই থাকবে।
+3. **চালক খোঁজা**: ম্যাপ খোলা রেখে নিচে "আপনার রাইড খোঁজা হচ্ছে…" দেখাবে, চলতে থাকা একটা দাগসহ। বাতিল করতে চাইলে আগে নিশ্চিত হতে চাইবে: "না, রাইড রাখুন" / "হ্যাঁ, বাতিল করুন"।
+4. **চালক আসছে / রাইড চলাকালীন**: নিচের প্যানেলে থাকবে চালকের নাম, গাড়ির নম্বর, কত মিনিটে পৌঁছাবে, কল করার বোতাম, রাইড শেয়ার আর বাতিল। চালককে ম্যাপে লাইভ দেখা আগের মতোই থাকবে।
+5. **রাইড শেষ**: আলাদা একটা শেষের পাতা আসবে। তাতে মোট ভাড়া (নগদ), ১–৫ তারা রেটিং, "পরে দেব" বোতাম, "রিসিট দেখুন" আর "আবার রাইড" থাকবে।
+6. **রিসিট**: রাইডের ইতিহাস পাতা থেকে খোলা যাবে। তাতে রাস্তা, পিকআপ, গন্তব্য আর ভাড়ার ভাগ দেখাবে।
+7. **নিরাপত্তা**: ম্যাপে একটা ঢাল-চিহ্নের বোতাম থাকবে। চাপলে খুলবে জরুরি কল (999), রাইড শেয়ার, আর আপনার অবস্থান ও গাড়ির নম্বর।
+8. **প্রথমবার খোলা**: লোকেশন অনুমতি চাওয়ার আগে ছোট করে কারণটা বোঝানো হবে। অনুমতি না দিলেও হাতে লিখে জায়গা দেওয়া যাবে।
+9. **খালি / ভুল / লোড হওয়ার অবস্থা**: সব জায়গায় পরিষ্কার বাংলা বার্তা আর "আবার চেষ্টা করুন" বোতাম থাকবে। কোনো চালক না পেলে সেটাও জানাবে।
+10. **চেহারা**: লেখা বড় ও পরিষ্কার হবে, বোতাম আঙুলে চাপার মতো বড় (কমপক্ষে ৪৮px)। ব্র্যান্ড রং #2F5D3C যেমন আছে তেমনই থাকবে।
 
-## চূড়ান্ত Prompt (হুবহু copy-paste করো)
+## যা বদলাবে না
+নগদ টাকায় পেমেন্ট, ১০ কিমি এলাকা, ইচ্ছামতো দরদাম, চালক ও অ্যাডমিনের পাতা, আর এখনকার লগইন।
 
-```text
-Build a NATIVE ANDROID-ONLY app for my existing ride-sharing web service "CHT GARI". No iOS needed.
-
-SOURCE CODE (read this repo first to understand all features, screens, business rules, fare logic, Bengali text, and database schema):
-https://github.com/dipta0371-del/khagrachari-ride-hero.git
-
-LIVE WEB APP (for reference): https://chtgari.com
-
-WHAT IT IS:
-A ride-sharing app for Khagrachari hill district, Bangladesh. Bengali language UI. Cash-only payments. Two vehicle types: bike and totom (CNG-like local vehicle). Three roles: Rider, Driver, Admin.
-
-TECHNICAL REQUIREMENTS:
-- Android only (Expo/React Native is fine)
-- MUST reuse the SAME backend: Supabase (auth + Postgres + realtime). Do NOT create a new backend or database. I will provide the Supabase URL and anon key. Users who signed up on web must be able to log in on the Android app.
-- Android package name MUST be: com.amarkgc.chtgari
-- Firebase Cloud Messaging for push notifications (Firebase project: cht-gari). I will attach google-services.json.
-- Google Places API for location search with Khagrachari bias; OpenStreetMap or Google Maps for the map display.
-
-FEATURES TO REPLICATE (all already exist in the repo — match them exactly):
-1. Auth: email/password signup and login for riders and drivers. Admin role approves drivers before they can go online.
-2. Rider flow (Uber-style booking screen):
-   - Two stacked search rows: pickup (green dot) and destination (red square), each with Google Places autocomplete in Bengali and English
-   - Swap button between the two rows
-   - Map pin selection: full map with a center-fixed pin the user drags, reverse-geocoded address shown below, "confirm this location" button
-   - "My location" GPS button
-   - Saved places and popular place chips
-   - Vehicle cards (bike / totom) showing fare and ETA
-   - Negotiable fare: rider can enter ANY positive amount, no min/max limit
-   - 10 km service radius validation from Khagrachari center
-3. Driver flow: vehicle registration, online/offline toggle, incoming ride requests, counter-offer any amount, accept, mark arrived → started → completed, earnings summary.
-4. Live tracking: driver uploads GPS location every 5 seconds while online or in a ride. Rider sees the driver marker moving on the map with live ETA. Ride status polls every 3.5 seconds.
-5. BACKGROUND LOCATION (this is the main reason I need a native app): driver location must keep uploading even when the phone screen is locked or the app is in the background. Use a foreground service with a persistent notification.
-6. Push notifications via FCM: new ride request (to nearby online drivers), driver accepted, driver arrived, ride started, ride completed, ride cancelled.
-7. Ratings: rider rates driver after ride completion.
-8. Cancellation: both sides can cancel before the ride starts.
-9. Admin screens: approve/reject drivers, edit fare rates per vehicle type, view statistics.
-10. Access control: riders cannot see driver screens and vice versa; a user with an active ride cannot book another one.
-
-UI/UX:
-- All user-facing text in Bengali (copy the exact Bengali strings from the repo)
-- Bengali number and date formatting
-- Brand color #2F5D3C, app name "CHT GARI" in Latin script
-- Mobile-first layouts matching the existing web screens
-
-DELIVERABLES:
-1. A working debug APK I can install on a real Android phone
-2. The full source code
-3. A list of all environment variables / config I need to set
-4. Step-by-step instructions to install the APK and test push notifications and background location on a real device
-
-IMPORTANT: Read the GitHub repo thoroughly before writing code. The fare calculation, ride state machine, Bengali strings, and Supabase table schema are all already defined there — match them, don't reinvent them.
-```
-
----
-
-## আপনার আসল Supabase credentials (এগুলোই দেবেন)
-এই দুটো public/publishable key — mobile app-এ দেওয়া নিরাপদ (RLS দিয়ে সুরক্ষিত):
-
-- **Supabase URL:** `https://othzgksynaxdodfokegp.supabase.co`
-- **Supabase Anon/Publishable Key:** `sb_publishable__3QS9BYU2ehHnWtEJeIlqg_ROXIuJe-`
-
-Emergent-কে দেওয়ার সময় লিখুন:
-```text
-Supabase URL: https://othzgksynaxdodfokegp.supabase.co
-Supabase anon key: sb_publishable__3QS9BYU2ehHnWtEJeIlqg_ROXIuJe-
-```
-
-**Service role key কখনো কাউকে দেবেন না** — সেটা শুধু server-side। এখানে সেটার দরকারই নেই।
-
-## Prompt দেওয়ার পর Emergent যা চাইবে
-- Supabase URL + anon key → উপরের স্টেপ থেকে
-- `google-services.json` → Firebase Console থেকে download করে attach করো
-- Google Maps API key → তোমার Google Cloud Console থেকে
-- অ্যাপ আইকন → নিজের লোগো ফাইল
-
-## বিকল্প (দ্রুততর)
-তোমার repo-তে ইতিমধ্যে Capacitor Android wrapper আছে। Android Studio বা GitHub Actions দিয়ে সরাসরি APK বানানো যাবে — Emergent-এ নতুন করে rebuild না করেই। তবে background location আর native push-এর জন্য Emergent-এর native rebuild বেশি ভালো ফল দেবে।
+## কারিগরি বিবরণ
+- `book.tsx`: এক পাতার ভেতরেই ধাপগুলো ভাগ হবে (idle → search → choose → matching → enroute → completed)। নিচের প্যানেলের জন্য একটা `BottomSheet` component আসবে, পেছনের লেখাগুলো ডাক্তারকে দেখাই না এমন—শুধু UI।
+- `LiveTracking.tsx`, `SafetyBar.tsx`, `PartyCard.tsx`: নিচের প্যানেলের নকশায় সাজানো হবে।
+- রাইড শেষের পাতা আর রিসিট: `rides.tsx` থেকে খুলবে। ভাড়ার ভাগ আসবে `domain.ts`-এর `quote` থেকে।
+- ডেটাবেসে কোনো বদল নেই। বাতিল করা আর রেটিং দেওয়ার জন্য আগের server function-গুলোই ব্যবহার হবে।
+- শেষে Playwright দিয়ে মোবাইল (390px) মাপে পুরো রাইড একবার চালিয়ে দেখা হবে।
