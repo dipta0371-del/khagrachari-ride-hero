@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowUpDown,
@@ -10,7 +10,7 @@ import {
   MapPinned,
   X,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
@@ -82,6 +82,20 @@ function BookPage() {
 
   const active = (data?.rides ?? []).find((r) => activeStatuses.includes(r.status));
 
+  // Remember the ride we were watching so we can show a finish screen when it completes.
+  const watchedId = useRef<string | null>(null);
+  const [finishedId, setFinishedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (active) {
+      watchedId.current = active.id;
+    } else if (watchedId.current) {
+      const done = data?.rides.find((r) => r.id === watchedId.current);
+      if (done?.status === "completed") setFinishedId(done.id);
+      watchedId.current = null;
+    }
+  }, [active, data]);
+  const finished = finishedId ? data?.rides.find((r) => r.id === finishedId) : undefined;
+
   return (
     <AppShell>
       {isLoading && !data ? (
@@ -90,6 +104,31 @@ function BookPage() {
         </div>
       ) : active ? (
         <ActiveRide ride={active} meId={me?.userId ?? ""} />
+      ) : finished ? (
+        <Card className="mx-auto max-w-md shadow-ridge">
+          <CardHeader>
+            <CardTitle className="font-display text-2xl">যাত্রা শেষ হয়েছে ✓</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2">
+              <Leg label="পিকআপ" value={finished.pickup.name} tone="primary" />
+              <Leg label="গন্তব্য" value={finished.dropoff.name} tone="accent" />
+            </div>
+            <div className="rounded-xl bg-secondary p-4">
+              <p className="text-xs text-muted-foreground">চালককে নগদে দিন</p>
+              <p className="text-3xl font-bold">{money(finished.fare)}</p>
+              <p className="text-sm text-muted-foreground">
+                {vehicleLabels[finished.vehicle]} · {bn(finished.distance)} কিমি
+              </p>
+            </div>
+            <Button asChild size="lg" className="h-12 w-full">
+              <Link to="/rides">চালককে রেটিং দিন ও রিসিট দেখুন</Link>
+            </Button>
+            <Button variant="outline" size="lg" className="h-12 w-full" onClick={() => setFinishedId(null)}>
+              আবার রাইড নিন
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <BookingForm rates={me?.rates ?? DEFAULT_RATES} />
       )}
@@ -103,6 +142,7 @@ function ActiveRide({ ride, meId }: { ride: RideRow; meId: string }) {
   const queryClient = useQueryClient();
   const cancelFn = useServerFn(cancelRide);
   const [reason, setReason] = useState<string>(cancelReasons[0] ?? "");
+  const [askCancel, setAskCancel] = useState(false);
   const cancelMutation = useMutation({
     mutationFn: () => cancelFn({ data: { rideId: ride.id, reason } }),
     onSuccess: () => {
@@ -180,37 +220,60 @@ function ActiveRide({ ride, meId }: { ride: RideRow; meId: string }) {
           ) : ride.pricingMode === "negotiated" ? (
             <OffersPanel ride={ride} />
           ) : (
-            <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-              কাছের অনুমোদিত চালকদের কাছে আপনার অনুরোধ পৌঁছেছে। কেউ গ্রহণ করলেই এখানে দেখাবে।
-            </p>
+            <div className="space-y-2 rounded-xl bg-secondary p-4" role="status">
+              <p className="flex items-center gap-2 font-semibold">
+                <Loader2 className="size-4 animate-spin" aria-hidden /> আপনার রাইড খোঁজা হচ্ছে…
+              </p>
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                কাছের চালকদের কাছে অনুরোধ গেছে। সাধারণত ১–৩ মিনিটের মধ্যে কেউ গ্রহণ করেন।
+              </p>
+            </div>
           )}
 
           <LiveTracking ride={ride} me={meId} />
 
-          {ride.status !== "in_progress" && (
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <select
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                aria-label="বাতিলের কারণ"
-                className="rounded-md border bg-background px-3 py-2 text-sm sm:flex-1"
-              >
-                {cancelReasons.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+          {ride.status !== "in_progress" &&
+            (!askCancel ? (
               <Button
                 variant="outline"
-                className="text-destructive"
-                onClick={() => cancelMutation.mutate()}
-                disabled={cancelMutation.isPending}
+                className="h-12 w-full text-destructive"
+                onClick={() => setAskCancel(true)}
               >
                 <X className="size-4" aria-hidden /> রাইড বাতিল করুন
               </Button>
-            </div>
-          )}
+            ) : (
+              <div className="space-y-3 rounded-xl border border-destructive/40 p-4">
+                <p className="font-semibold">রাইড বাতিল করতে চান?</p>
+                <select
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  aria-label="বাতিলের কারণ"
+                  className="h-12 w-full rounded-md border bg-background px-3 text-sm"
+                >
+                  {cancelReasons.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <Button className="h-12 flex-1" onClick={() => setAskCancel(false)}>
+                    না, রাইড রাখুন
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="h-12 flex-1"
+                    onClick={() => cancelMutation.mutate()}
+                    disabled={cancelMutation.isPending}
+                  >
+                    হ্যাঁ, বাতিল করুন
+                  </Button>
+                </div>
+              </div>
+            ))}
         </CardContent>
       </Card>
     </div>
@@ -778,7 +841,7 @@ function BookingForm({ rates }: { rates: Rates }) {
                   >
                     {booking.isPending
                       ? "পাঠানো হচ্ছে…"
-                      : `${money(pricingMode === "negotiated" && offeredFare ? Number(offeredFare) : estimate.q.fare)} — রাইড নিশ্চিত করুন`}
+                      : `${vehicleLabels[vehicle]} নিশ্চিত করুন · ${money(pricingMode === "negotiated" && offeredFare ? Number(offeredFare) : estimate.q.fare)}`}
                   </Button>
                 </>
               )
